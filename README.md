@@ -1,50 +1,124 @@
-# Welcome to your Expo app 👋
+# FitTrack Pro - Workout Tracking Mobile App
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A modern, full-featured workout tracking application built with React Native and Expo. Track your exercises, monitor progress, and achieve your fitness goals.
 
-## Get started
+![React Native](https://img.shields.io/badge/React_Native-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
+![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
+![Expo](https://img.shields.io/badge/Expo-000020?style=for-the-badge&logo=expo&logoColor=white)
 
-1. Install dependencies
+## 🎯 Features
 
-   ```bash
-   npm install
-   ```
+- **Workout Logging**: Add exercises with sets, reps, and weight tracking
+- **History Tracking**: View complete workout history with detailed exercise breakdowns
+- **Progress Analytics**: Visualize workout frequency and track personal records
+- **Data Persistence**: All data saved locally using AsyncStorage
+- **Dark Theme UI**: Modern, professional interface optimized for mobile
+- **Real-time Updates**: Automatic screen refresh when navigating between tabs
 
-2. Start the app
+## 📱 Screenshots
 
-   ```bash
-   npx expo start
-   ```
+[Add screenshots here when you take them]
 
-In the output, you'll find options to open the app in a
+## 🛠️ Tech Stack
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+- **Framework**: React Native with Expo
+- **Language**: TypeScript
+- **Navigation**: Expo Router (file-based routing)
+- **Storage**: AsyncStorage
+- **Charts**: React Native Chart Kit
+- **Icons**: Expo Vector Icons
+- **Date Formatting**: date-fns
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+## 🚀 Getting Started
 
-## Get a fresh project
+### Prerequisites
 
-When you're ready, run:
+- Node.js (v18 or higher)
+- npm or yarn
+- Expo Go app on your mobile device
 
+### Installation
+
+1. Clone the repository
 ```bash
-npm run reset-project
+git clone https://github.com/yourusername/workout-tracker.git
+cd workout-tracker
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+2. Install dependencies
+```bash
+npm install
+```
 
-## Learn more
+3. Start the development server
+```bash
+npx expo start
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+4. Scan the QR code with Expo Go (Android) or Camera app (iOS)
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## 📂 Project Structure
+```
+workout-tracker/
+├── app/
+│   ├── (tabs)/           # Tab-based screens
+│   │   ├── index.tsx     # Home screen
+│   │   ├── log-workout.tsx
+│   │   ├── history.tsx
+│   │   └── progress.tsx
+│   ├── types/            # TypeScript interfaces
+│   │   └── workout.ts
+│   └── utils/            # Helper functions
+│       ├── storage.ts    # AsyncStorage operations
+│       ├── helpers.ts    # Utility functions
+│       └── stats.ts      # Statistics calculations
+├── assets/               # Images and fonts
+└── app.json             # Expo configuration
+```
 
-## Join the community
+## 💡 Key Learning Points
 
-Join our community of developers creating universal apps.
+This project demonstrates:
+- React Native mobile development
+- TypeScript for type safety
+- State management with React hooks
+- Async data persistence
+- Form handling and validation
+- Data visualization with charts
+- Component-based architecture
+- File-based routing with Expo Router
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## 🎓 Built As
+
+A practice project to learn React Native before building a larger Next.js application. This project helped solidify React concepts including:
+- useState and useEffect hooks
+- Component composition
+- Props and state management
+- Navigation patterns
+- Data flow in React applications
+
+## 📝 Future Enhancements
+
+- [ ] Add workout templates
+- [ ] Exercise library with demonstrations
+- [ ] Rest timer between sets
+- [ ] Export data to CSV
+- [ ] Cloud sync (Firebase/Supabase)
+- [ ] Social features (share workouts)
+- [ ] Dark/Light theme toggle
+- [ ] Exercise notes and photos
+
+## 📄 License
+
+This project is open source and available under the MIT License.
+
+## 👨‍💻 Author
+
+[Your Name]
+- LinkedIn: [Your LinkedIn]
+- GitHub: [Your GitHub]
+- Portfolio: [Your Portfolio]
+
+---
+
+**Note**: This is a portfolio/learning project demonstrating mobile development skills with React Native and TypeScript.
