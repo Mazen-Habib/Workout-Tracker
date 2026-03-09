@@ -17,11 +17,12 @@ const WIDTH = Dimensions.get('window').width;
 
 export default function LogExerciseScreen() {
   const router = useRouter();
-  const { sportId, categoryId, muscleId, exerciseId } = useLocalSearchParams<{
+  const { sportId, categoryId, muscleId, exerciseId, exerciseName } = useLocalSearchParams<{
     sportId: string;
     categoryId: string;
     muscleId: string;
     exerciseId: string;
+    exerciseName: string;
   }>();
   const [exercise, setExercise] = useState<Exercise | null>(null);
   const [sets, setSets] = useState<Array<{ reps: string; weight: string }>>([

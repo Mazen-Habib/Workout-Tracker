@@ -48,11 +48,17 @@ export default function SelectExerciseScreen() {
     }
   };
 
-  const handleSelectExercise = (exerciseId: string) => {
+  const handleSelectExercise = (exercise: Exercise) => {
     // Proceed to the next screen (e.g., log exercise sets)
     router.push({
       pathname: '/log-exercise',
-      params: { sportId, categoryId, muscleId, exerciseId },
+      params: {
+        sportId,
+        categoryId,
+        muscleId,
+        exerciseId: exercise.id,
+        exerciseName: exercise.name,
+      },
     });
   };
 
@@ -65,14 +71,14 @@ export default function SelectExerciseScreen() {
     </View>
   );
 
-  const renderExerciseCard = (exerciseId: string, exerciseName: string) => (
+  const renderExerciseCard = (exercise: Exercise) => (
     <TouchableOpacity
-      key={exerciseId}
-      onPress={() => handleSelectExercise(exerciseId)}
+      key={exercise.id}
+      onPress={() => handleSelectExercise(exercise)}
       activeOpacity={0.7}
       style={styles.exerciseCard}
     >
-      <Text style={styles.exerciseName}>{exerciseName}</Text>
+      <Text style={styles.exerciseName}>{exercise.name}</Text>
       <Ionicons name="chevron-forward" size={24} color="#3b82f6" />
     </TouchableOpacity>
   );
@@ -93,7 +99,7 @@ export default function SelectExerciseScreen() {
             {exercises.length === 0
               ? renderEmptyState()
               : exercises.map((exercise) =>
-                  renderExerciseCard(exercise.id, exercise.name)
+                  renderExerciseCard(exercise)
                 )}
           </ScrollView>
         </>
