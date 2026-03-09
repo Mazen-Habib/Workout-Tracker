@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   Dimensions,
@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import ExerciseHistoryCard from './components/ExerciseHistoryCard';
 import { Exercise, ExerciseLibrary, Workout, WorkoutExercise } from './types/workout';
 import { generateId } from './utils/helpers';
 import { addWorkout, loadLibrary } from './utils/storage';
@@ -66,19 +67,28 @@ export default function LogExerciseScreen() {
 
   const handleCompleteSet = async () => {
     try {
+      // Filter valid sets
+      const validSets = sets
+        .filter((set) => set.reps !== '' && set.weight !== '')
+        .map((set, index) => ({
+          id: generateId(),
+          reps: parseInt(set.reps, 10),
+          weight: parseFloat(set.weight),
+        }));
+
+      // Check if there are any valid sets
+      if (validSets.length === 0) {
+        console.warn('No valid sets to save');
+        return;
+      }
+
       // Create workout exercise entry
       const workoutExercise: WorkoutExercise = {
         id: generateId(),
         exerciseId: exerciseId,
         exerciseName: exerciseName,
         muscle: exercise?.muscle || '',
-        sets: sets
-          .filter((set) => set.reps !== '' && set.weight !== '')
-          .map((set, index) => ({
-            id: generateId(),
-            reps: parseInt(set.reps, 10),
-            weight: parseFloat(set.weight),
-          })),
+        sets: validSets,
       };
 
       // Create complete workout entry
@@ -106,6 +116,24 @@ export default function LogExerciseScreen() {
 
   return (
     <View style={styles.container}>
+      <Stack.Screen
+        options={{
+          title: exerciseName || 'Log Exercise',
+          headerRight: () => (
+            <TouchableOpacity
+              onPress={() =>
+                router.push({
+                  pathname: '/exercise-history',
+                  params: { exerciseId, exerciseName },
+                })
+              }
+              style={{ marginRight: 16 }}
+            >
+              <Ionicons name="stats-chart" size={24} color="#3b82f6" />
+            </TouchableOpacity>
+          ),
+        }}
+      />
       {loading ? (
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Loading...</Text>
@@ -114,6 +142,13 @@ export default function LogExerciseScreen() {
         <>
           <Text style={styles.title}>{exercise?.name}</Text>
           <Text style={styles.subtitle}>{exercise?.muscle}</Text>
+
+          <ExerciseHistoryCard
+            exerciseId={exerciseId}
+            exerciseName={exerciseName}
+          />
+
+          <Text style={styles.sectionTitle}>Today’s Workout</Text>
           
           <ScrollView
             contentContainerStyle={styles.setsList}
@@ -200,6 +235,14 @@ const styles = StyleSheet.create({
     color: '#9ca3af',
     paddingHorizontal: 16,
     marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ffffff',
+    marginBottom: 12,
+    marginTop: 8,
+    paddingHorizontal: 16,
   },
   setsList: {
     paddingVertical: 16,

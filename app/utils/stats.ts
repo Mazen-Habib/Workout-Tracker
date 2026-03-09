@@ -10,7 +10,9 @@ export const getTotalVolume = (workouts: Workout[]): number => {
   let total = 0;
   workouts.forEach(workout => {
     workout.exercises.forEach(exercise => {
-      total += exercise.sets * exercise.reps * exercise.weight;
+      exercise.sets.forEach(set => {
+        total += set.reps * set.weight;
+      });
     });
   });
   return total;
@@ -21,7 +23,7 @@ export const getUniqueExercises = (workouts: Workout[]): string[] => {
   const exerciseSet = new Set<string>();
   workouts.forEach(workout => {
     workout.exercises.forEach(exercise => {
-      exerciseSet.add(exercise.name);
+      exerciseSet.add(exercise.exerciseName);
     });
   });
   return Array.from(exerciseSet).sort();
@@ -33,10 +35,12 @@ export const getPersonalRecords = (workouts: Workout[]): { name: string; weight:
   
   workouts.forEach(workout => {
     workout.exercises.forEach(exercise => {
-      const currentMax = records.get(exercise.name) || 0;
-      if (exercise.weight > currentMax) {
-        records.set(exercise.name, exercise.weight);
-      }
+      exercise.sets.forEach(set => {
+        const currentMax = records.get(exercise.exerciseName) || 0;
+        if (set.weight > currentMax) {
+          records.set(exercise.exerciseName, set.weight);
+        }
+      });
     });
   });
 

@@ -82,6 +82,16 @@ export default function RootLayout() {
             ...darkHeaderOptions,
           }}
         />
+
+        <Stack.Screen
+          name="exercise-history"
+          options={{
+            title: 'Exercise History',
+            presentation: 'card',
+            headerStyle: { backgroundColor: '#1a1a1a' },
+            headerTintColor: '#ffffff',
+          }}
+        />
       </Stack>
       <StatusBar style="auto" />
     </ThemeProvider>
