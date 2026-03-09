@@ -17,6 +17,10 @@ export default function RootLayout() {
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+        <Stack.Screen name="select-category" options={{ title: 'Select Category', headerStyle: { backgroundColor: '#1a1a1a' }, headerTintColor: '#ffffff', headerTitleStyle: { color: '#ffffff' } }} />
+        <Stack.Screen name="select-muscle-group" options={{ title: 'Select Muscle Group', headerStyle: { backgroundColor: '#1a1a1a' }, headerTintColor: '#ffffff', headerTitleStyle: { color: '#ffffff' } }} />
+        <Stack.Screen name="select-exercise" options={{ title: 'Select Exercise', headerStyle: { backgroundColor: '#1a1a1a' }, headerTintColor: '#ffffff', headerTitleStyle: { color: '#ffffff' } }} />
+        <Stack.Screen name="log-exercise" options={{ title: 'Log Exercise', headerStyle: { backgroundColor: '#1a1a1a' }, headerTintColor: '#ffffff', headerTitleStyle: { color: '#ffffff' } }} />
       </Stack>
       <StatusBar style="auto" />
     </ThemeProvider>
