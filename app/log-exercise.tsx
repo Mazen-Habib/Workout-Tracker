@@ -10,8 +10,9 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Exercise, ExerciseLibrary } from './types/workout';
-import { loadLibrary } from './utils/storage';
+import { Exercise, ExerciseLibrary, Workout, WorkoutExercise } from './types/workout';
+import { generateId } from './utils/helpers';
+import { addWorkout, loadLibrary } from './utils/storage';
 
 const WIDTH = Dimensions.get('window').width;
 
@@ -63,9 +64,40 @@ export default function LogExerciseScreen() {
     setSets(newSets);
   };
 
-  const handleCompleteSet = () => {
-    // TODO: Save the workout data to storage
-    router.back();
+  const handleCompleteSet = async () => {
+    try {
+      // Create workout exercise entry
+      const workoutExercise: WorkoutExercise = {
+        id: generateId(),
+        exerciseId: exerciseId,
+        exerciseName: exerciseName,
+        muscle: exercise?.muscle || '',
+        sets: sets
+          .filter((set) => set.reps !== '' && set.weight !== '')
+          .map((set, index) => ({
+            id: generateId(),
+            reps: parseInt(set.reps, 10),
+            weight: parseFloat(set.weight),
+          })),
+      };
+
+      // Create complete workout entry
+      const workout: Workout = {
+        id: generateId(),
+        date: new Date().toISOString(),
+        sport: '', // Will be retrieved from params if needed
+        category: categoryId,
+        exercises: [workoutExercise],
+      };
+
+      // Save workout to storage
+      await addWorkout(workout);
+
+      // Navigate back
+      router.back();
+    } catch (error) {
+      console.error('Error saving workout:', error);
+    }
   };
 
   const handleRemoveSet = (index: number) => {
