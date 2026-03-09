@@ -2,12 +2,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    Dimensions,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Dimensions,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { Exercise, ExerciseLibrary } from './types/workout';
 import { loadLibrary } from './utils/storage';
@@ -16,7 +16,11 @@ const WIDTH = Dimensions.get('window').width;
 
 export default function SelectExerciseScreen() {
   const router = useRouter();
-  const { sportId, categoryId, muscleId } = useLocalSearchParams();
+  const { sportId, categoryId, muscleId } = useLocalSearchParams<{
+    sportId: string;
+    categoryId: string;
+    muscleId: string;
+  }>();
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [muscleName, setMuscleName] = useState<string>('');
   const [loading, setLoading] = useState(true);

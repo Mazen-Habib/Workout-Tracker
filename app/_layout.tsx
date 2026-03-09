@@ -57,7 +57,7 @@ export default function RootLayout() {
         />
 
         <Stack.Screen
-          name="select-muscle-group"
+          name="select-muscle"
           options={{
             presentation: 'modal',
             title: 'Select Muscle Group',

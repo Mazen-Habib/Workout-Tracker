@@ -16,7 +16,10 @@ const WIDTH = Dimensions.get('window').width;
 
 export default function SelectMuscleGroupScreen() {
   const router = useRouter();
-  const { sportId, categoryId } = useLocalSearchParams();
+  const { sportId, categoryId } = useLocalSearchParams<{
+    sportId: string;
+    categoryId: string;
+  }>();
   const [muscleGroups, setMuscleGroups] = useState<MuscleGroup[]>([]);
   const [categoryName, setCategoryName] = useState<string>('');
   const [loading, setLoading] = useState(true);

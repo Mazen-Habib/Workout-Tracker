@@ -2,14 +2,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
-    Dimensions,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Dimensions,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { ExerciseLibrary, Sport } from './types/workout';
 import { addCategory, loadLibrary } from './utils/storage';
@@ -31,7 +31,7 @@ const getCategoryIcon = (categoryName: string): any => {
 
 export default function SelectCategoryScreen() {
   const router = useRouter();
-  const { sportId } = useLocalSearchParams();
+  const { sportId } = useLocalSearchParams<{ sportId: string }>();
   const [selectedSport, setSelectedSport] = useState<Sport | null>(null);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
@@ -64,7 +64,7 @@ export default function SelectCategoryScreen() {
 
   const handleSelectCategory = (categoryId: string) => {
     router.push({
-      pathname: '/select-muscle-group',
+      pathname: '/select-muscle',
       params: { sportId: sportIdString, categoryId },
     });
   };
