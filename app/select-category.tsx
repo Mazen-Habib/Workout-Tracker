@@ -1,18 +1,19 @@
+import { AppDialog, AppDialogAction } from '@/components/ui/app-dialog';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
-  Dimensions,
-  Modal,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Dimensions,
+    Modal,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { ExerciseLibrary, Sport } from './types/workout';
-import { addCategory, loadLibrary } from './utils/storage';
+import { addCategory, deleteCategory, loadLibrary, updateCategoryName } from './utils/storage';
 
 const WIDTH = Dimensions.get('window').width;
 
@@ -36,6 +37,11 @@ export default function SelectCategoryScreen() {
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
+  const [dialogVisible, setDialogVisible] = useState(false);
+  const [dialogTitle, setDialogTitle] = useState('');
+  const [dialogMessage, setDialogMessage] = useState('');
+  const [dialogActions, setDialogActions] = useState<AppDialogAction[]>([]);
   
   // Handle sportId from params (could be string or array)
   const sportIdString = React.useMemo(() => {
@@ -69,22 +75,83 @@ export default function SelectCategoryScreen() {
     });
   };
 
-  const handleAddCategory = async () => {
+  const handleSaveCategory = async () => {
     if (newCategoryName.trim().length === 0) {
       return;
     }
 
     try {
       if (selectedSport) {
-        await addCategory(selectedSport.id, newCategoryName.trim());
+        if (editingCategoryId) {
+          await updateCategoryName(selectedSport.id, editingCategoryId, newCategoryName.trim());
+        } else {
+          await addCategory(selectedSport.id, newCategoryName.trim());
+        }
         setNewCategoryName('');
+        setEditingCategoryId(null);
         setModalVisible(false);
         // Reload sport data
         await loadSportData();
       }
     } catch (error) {
-      console.error('Error adding category:', error);
+      console.error('Error saving category:', error);
     }
+  };
+
+  const handleOpenAddCategory = () => {
+    setEditingCategoryId(null);
+    setNewCategoryName('');
+    setModalVisible(true);
+  };
+
+  const handleEditCategory = (categoryId: string, categoryName: string) => {
+    setEditingCategoryId(categoryId);
+    setNewCategoryName(categoryName);
+    setModalVisible(true);
+  };
+
+  const handleDeleteCategory = (categoryId: string, categoryName: string) => {
+    if (!selectedSport) return;
+
+    setDialogTitle(`Delete ${categoryName}?`);
+    setDialogMessage('This will delete all sub categories and exercises.');
+    setDialogActions([
+      { label: 'Cancel', variant: 'cancel' },
+      {
+        label: 'Delete',
+        variant: 'danger',
+        onPress: async () => {
+          try {
+            await deleteCategory(selectedSport.id, categoryId);
+            await loadSportData();
+          } catch (error) {
+            setDialogTitle('Error');
+            setDialogMessage('Failed to delete category');
+            setDialogActions([{ label: 'OK', variant: 'cancel' }]);
+            setDialogVisible(true);
+          }
+        },
+      },
+    ]);
+    setDialogVisible(true);
+  };
+
+  const handleCategoryLongPress = (categoryId: string, categoryName: string) => {
+    setDialogTitle(categoryName);
+    setDialogMessage('Choose an action');
+    setDialogActions([
+      {
+        label: 'Update Name',
+        onPress: () => handleEditCategory(categoryId, categoryName),
+      },
+      {
+        label: 'Delete Category',
+        variant: 'danger',
+        onPress: () => handleDeleteCategory(categoryId, categoryName),
+      },
+      { label: 'Cancel', variant: 'cancel' },
+    ]);
+    setDialogVisible(true);
   };
 
   const renderEmptyState = () => (
@@ -100,6 +167,7 @@ export default function SelectCategoryScreen() {
     <TouchableOpacity
       key={categoryId}
       onPress={() => handleSelectCategory(categoryId)}
+        onLongPress={() => handleCategoryLongPress(categoryId, categoryName)}
       activeOpacity={0.7}
       style={styles.categoryCard}
     >
@@ -142,7 +210,7 @@ export default function SelectCategoryScreen() {
       {/* Floating Action Button - Add Category */}
       <TouchableOpacity
         style={styles.fab}
-        onPress={() => setModalVisible(true)}
+        onPress={handleOpenAddCategory}
         activeOpacity={0.8}
       >
         <Ionicons name="add" size={32} color="#ffffff" />
@@ -157,7 +225,9 @@ export default function SelectCategoryScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Add New Category</Text>
+            <Text style={styles.modalTitle}>
+              {editingCategoryId ? 'Update Category Name' : 'Add New Category'}
+            </Text>
             <TextInput
               style={styles.textInput}
               placeholder="Enter category name (e.g., Push, Pull, Legs)"
@@ -169,20 +239,34 @@ export default function SelectCategoryScreen() {
             <View style={styles.modalButtonContainer}>
               <TouchableOpacity
                 style={styles.cancelButton}
-                onPress={() => setModalVisible(false)}
+                onPress={() => {
+                  setModalVisible(false);
+                  setEditingCategoryId(null);
+                  setNewCategoryName('');
+                }}
               >
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.addButton}
-                onPress={handleAddCategory}
+                onPress={handleSaveCategory}
               >
-                <Text style={styles.addButtonText}>Add Category</Text>
+                <Text style={styles.addButtonText}>
+                  {editingCategoryId ? 'Update Category' : 'Add Category'}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
+
+      <AppDialog
+        visible={dialogVisible}
+        title={dialogTitle}
+        message={dialogMessage}
+        actions={dialogActions}
+        onClose={() => setDialogVisible(false)}
+      />
     </View>
   );
 }

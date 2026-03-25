@@ -1,9 +1,9 @@
+import { AppDialog, AppDialogAction } from '@/components/ui/app-dialog';
 import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { useFocusEffect } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    Alert,
     ScrollView,
     StyleSheet,
     Text,
@@ -11,11 +11,15 @@ import {
     View
 } from 'react-native';
 import { Workout } from '../types/workout';
-import { deleteWorkout, loadWorkouts } from '../utils/storage';
+import { clearAllWorkouts, deleteWorkout, loadWorkouts } from '../utils/storage';
 
 export default function HistoryScreen() {
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dialogVisible, setDialogVisible] = useState(false);
+  const [dialogTitle, setDialogTitle] = useState('');
+  const [dialogMessage, setDialogMessage] = useState('');
+  const [dialogActions, setDialogActions] = useState<AppDialogAction[]>([]);
 
   // Load workouts when screen comes into focus
   useFocusEffect(
@@ -36,29 +40,51 @@ export default function HistoryScreen() {
   };
 
   const handleDeleteWorkout = (workoutId: string, workoutDate: string) => {
-    Alert.alert(
-      'Delete Workout',
-      `Delete workout from ${format(new Date(workoutDate), 'MMM d, yyyy')}?`,
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
+    setDialogTitle('Delete Workout');
+    setDialogMessage(`Delete workout from ${format(new Date(workoutDate), 'MMM d, yyyy')}?`);
+    setDialogActions([
+      { label: 'Cancel', variant: 'cancel' },
+      {
+        label: 'Delete',
+        variant: 'danger',
+        onPress: async () => {
+          try {
+            await deleteWorkout(workoutId);
+            await loadWorkoutsData();
+          } catch (error) {
+            setDialogTitle('Error');
+            setDialogMessage('Failed to delete workout');
+            setDialogActions([{ label: 'OK', variant: 'cancel' }]);
+            setDialogVisible(true);
+          }
         },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteWorkout(workoutId);
-              await loadWorkoutsData(); // Reload the list
-              Alert.alert('Success', 'Workout deleted');
-            } catch (error) {
-              Alert.alert('Error', 'Failed to delete workout');
-            }
-          },
+      },
+    ]);
+    setDialogVisible(true);
+  };
+
+  const handleClearAllWorkouts = () => {
+    setDialogTitle('Clear All Workout History');
+    setDialogMessage('This will permanently delete all workout history. Are you sure?');
+    setDialogActions([
+      { label: 'Cancel', variant: 'cancel' },
+      {
+        label: 'Clear All',
+        variant: 'danger',
+        onPress: async () => {
+          try {
+            await clearAllWorkouts();
+            await loadWorkoutsData();
+          } catch (error) {
+            setDialogTitle('Error');
+            setDialogMessage('Failed to clear workout history');
+            setDialogActions([{ label: 'OK', variant: 'cancel' }]);
+            setDialogVisible(true);
+          }
         },
-      ]
-    );
+      },
+    ]);
+    setDialogVisible(true);
   };
 
   if (loading) {
@@ -85,7 +111,13 @@ export default function HistoryScreen() {
     <ScrollView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Workout History</Text>
-        <Text style={styles.subtitle}>{workouts.length} total workouts</Text>
+        <View style={styles.headerRow}>
+          <Text style={styles.subtitle}>{workouts.length} total workouts</Text>
+          <TouchableOpacity onPress={handleClearAllWorkouts} style={styles.clearAllButton}>
+            <Ionicons name="trash" size={16} color="#ef4444" />
+            <Text style={styles.clearAllText}>Clear All</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {workouts.map((workout) => (
@@ -154,6 +186,14 @@ export default function HistoryScreen() {
           )}
         </View>
       ))}
+
+      <AppDialog
+        visible={dialogVisible}
+        title={dialogTitle}
+        message={dialogMessage}
+        actions={dialogActions}
+        onClose={() => setDialogVisible(false)}
+      />
     </ScrollView>
   );
 }
@@ -183,6 +223,28 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#9ca3af',
     marginTop: 4,
+  },
+  headerRow: {
+    marginTop: 6,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  clearAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: '#ef4444',
+    borderRadius: 8,
+    backgroundColor: '#2a1515',
+  },
+  clearAllText: {
+    color: '#ef4444',
+    fontSize: 12,
+    fontWeight: '700',
   },
   emptyTitle: {
     fontSize: 20,

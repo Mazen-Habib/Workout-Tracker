@@ -1,11 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
-  Category,
-  Exercise,
-  ExerciseLibrary,
-  MuscleGroup,
-  Sport,
-  Workout,
+    Category,
+    Exercise,
+    ExerciseLibrary,
+    MuscleGroup,
+    Sport,
+    Workout,
 } from '../types/workout';
 import { generateId } from './helpers';
 
@@ -112,6 +112,36 @@ export const addSport = async (sportName: string): Promise<void> => {
   await saveLibrary(library);
 };
 
+// Rename a sport
+export const updateSportName = async (sportId: string, newName: string): Promise<void> => {
+  const library = await loadLibrary();
+  const sport = library.sports.find(s => s.id === sportId);
+
+  if (sport) {
+    sport.name = newName;
+    sport.categories = sport.categories.map((category) => ({
+      ...category,
+      sport: newName,
+      muscleGroups: category.muscleGroups.map((muscle) => ({
+        ...muscle,
+        sport: newName,
+        exercises: muscle.exercises.map((exercise) => ({
+          ...exercise,
+          sport: newName,
+        })),
+      })),
+    }));
+    await saveLibrary(library);
+  }
+};
+
+// Delete a sport and all nested categories/muscles/exercises
+export const deleteSport = async (sportId: string): Promise<void> => {
+  const library = await loadLibrary();
+  library.sports = library.sports.filter(s => s.id !== sportId);
+  await saveLibrary(library);
+};
+
 // Add a new category to a sport
 export const addCategory = async (sportId: string, categoryName: string): Promise<void> => {
   const library = await loadLibrary();
@@ -124,6 +154,41 @@ export const addCategory = async (sportId: string, categoryName: string): Promis
       muscleGroups: [],
     };
     sport.categories.push(newCategory);
+    await saveLibrary(library);
+  }
+};
+
+// Rename a category
+export const updateCategoryName = async (
+  sportId: string,
+  categoryId: string,
+  newName: string
+): Promise<void> => {
+  const library = await loadLibrary();
+  const sport = library.sports.find(s => s.id === sportId);
+  const category = sport?.categories.find(c => c.id === categoryId);
+
+  if (category) {
+    category.name = newName;
+    category.muscleGroups = category.muscleGroups.map((muscle) => ({
+      ...muscle,
+      category: newName,
+      exercises: muscle.exercises.map((exercise) => ({
+        ...exercise,
+        category: newName,
+      })),
+    }));
+    await saveLibrary(library);
+  }
+};
+
+// Delete a category and all nested muscle groups + exercises
+export const deleteCategory = async (sportId: string, categoryId: string): Promise<void> => {
+  const library = await loadLibrary();
+  const sport = library.sports.find(s => s.id === sportId);
+
+  if (sport) {
+    sport.categories = sport.categories.filter(c => c.id !== categoryId);
     await saveLibrary(library);
   }
 };
@@ -146,6 +211,44 @@ export const addMuscleGroup = async (
       exercises: [],
     };
     category.muscleGroups.push(newMuscle);
+    await saveLibrary(library);
+  }
+};
+
+// Rename a muscle group
+export const updateMuscleGroupName = async (
+  sportId: string,
+  categoryId: string,
+  muscleId: string,
+  newName: string
+): Promise<void> => {
+  const library = await loadLibrary();
+  const sport = library.sports.find(s => s.id === sportId);
+  const category = sport?.categories.find(c => c.id === categoryId);
+  const muscle = category?.muscleGroups.find(m => m.id === muscleId);
+
+  if (muscle) {
+    muscle.name = newName;
+    muscle.exercises = muscle.exercises.map((exercise) => ({
+      ...exercise,
+      muscle: newName,
+    }));
+    await saveLibrary(library);
+  }
+};
+
+// Delete a muscle group and all nested exercises
+export const deleteMuscleGroup = async (
+  sportId: string,
+  categoryId: string,
+  muscleId: string
+): Promise<void> => {
+  const library = await loadLibrary();
+  const sport = library.sports.find(s => s.id === sportId);
+  const category = sport?.categories.find(c => c.id === categoryId);
+
+  if (category) {
+    category.muscleGroups = category.muscleGroups.filter(m => m.id !== muscleId);
     await saveLibrary(library);
   }
 };
@@ -175,6 +278,26 @@ export const addExercise = async (
   }
 };
 
+// Rename exercise
+export const updateExerciseName = async (
+  sportId: string,
+  categoryId: string,
+  muscleId: string,
+  exerciseId: string,
+  newName: string
+): Promise<void> => {
+  const library = await loadLibrary();
+  const sport = library.sports.find(s => s.id === sportId);
+  const category = sport?.categories.find(c => c.id === categoryId);
+  const muscle = category?.muscleGroups.find(m => m.id === muscleId);
+  const exercise = muscle?.exercises.find(e => e.id === exerciseId);
+
+  if (exercise) {
+    exercise.name = newName;
+    await saveLibrary(library);
+  }
+};
+
 // Delete exercise (long press)
 export const deleteExercise = async (
   sportId: string,
@@ -191,6 +314,29 @@ export const deleteExercise = async (
     muscle.exercises = muscle.exercises.filter(e => e.id !== exerciseId);
     await saveLibrary(library);
   }
+};
+
+// Delete a specific exercise history entry from a workout
+// If this removes the last exercise in that workout, the workout itself is deleted.
+export const deleteExerciseFromWorkout = async (
+  workoutId: string,
+  exerciseId: string
+): Promise<void> => {
+  const workouts = await loadWorkouts();
+  const updated = workouts
+    .map((workout) => {
+      if (workout.id !== workoutId) {
+        return workout;
+      }
+
+      return {
+        ...workout,
+        exercises: workout.exercises.filter((exercise) => exercise.exerciseId !== exerciseId),
+      };
+    })
+    .filter((workout) => workout.exercises.length > 0);
+
+  await saveWorkouts(updated);
 };
 
 // Initialize library with Gym > Push > Chest exercises (for demo)

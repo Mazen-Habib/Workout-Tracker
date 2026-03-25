@@ -1,10 +1,11 @@
+import { AppDialog, AppDialogAction } from '@/components/ui/app-dialog';
 import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { Stack, useLocalSearchParams } from 'expo-router';
-import React, { useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { ExerciseSet, Workout, WorkoutExercise } from './types/workout';
-import { loadWorkouts } from './utils/storage';
+import { deleteExerciseFromWorkout, loadWorkouts } from './utils/storage';
 
 interface ExerciseHistoryItem {
 	workout: Workout;
@@ -18,6 +19,10 @@ export default function ExerciseHistoryScreen() {
 	}>();
 
 	const [historyItems, setHistoryItems] = useState<ExerciseHistoryItem[]>([]);
+	const [dialogVisible, setDialogVisible] = useState(false);
+	const [dialogTitle, setDialogTitle] = useState('');
+	const [dialogMessage, setDialogMessage] = useState('');
+	const [dialogActions, setDialogActions] = useState<AppDialogAction[]>([]);
 
 	const normalizedExerciseName = useMemo(() => {
 		if (Array.isArray(exerciseName)) {
@@ -33,38 +38,64 @@ export default function ExerciseHistoryScreen() {
 		return exerciseId || '';
 	}, [exerciseId]);
 
-	useEffect(() => {
-		const loadHistory = async () => {
-			try {
-				const workouts = await loadWorkouts();
+	const loadHistory = useCallback(async () => {
+		try {
+			const workouts = await loadWorkouts();
 
-				const filtered = workouts
-					.filter((workout) =>
-						workout.exercises.some((exercise) => exercise.exerciseId === normalizedExerciseId)
-					)
-					.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+			const filtered = workouts
+				.filter((workout) =>
+					workout.exercises.some((exercise) => exercise.exerciseId === normalizedExerciseId)
+				)
+				.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-				const mapped = filtered
-					.map((workout) => {
-						const exercise = workout.exercises.find(
-							(item) => item.exerciseId === normalizedExerciseId
-						);
-						if (!exercise) {
-							return null;
-						}
-						return { workout, exercise };
-					})
-					.filter((item): item is ExerciseHistoryItem => item !== null);
+			const mapped = filtered
+				.map((workout) => {
+					const exercise = workout.exercises.find(
+						(item) => item.exerciseId === normalizedExerciseId
+					);
+					if (!exercise) {
+						return null;
+					}
+					return { workout, exercise };
+				})
+				.filter((item): item is ExerciseHistoryItem => item !== null);
 
-				setHistoryItems(mapped);
-			} catch (error) {
-				console.error('Error loading exercise history:', error);
-				setHistoryItems([]);
-			}
-		};
-
-		loadHistory();
+			setHistoryItems(mapped);
+		} catch (error) {
+			console.error('Error loading exercise history:', error);
+			setHistoryItems([]);
+		}
 	}, [normalizedExerciseId]);
+
+	useEffect(() => {
+		loadHistory();
+	}, [loadHistory]);
+
+	const handleDeleteHistoryEntry = (workout: Workout) => {
+		setDialogTitle('Delete Exercise History Entry');
+		setDialogMessage(
+			`Delete ${normalizedExerciseName} from ${format(new Date(workout.date), 'MMM d, yyyy')}?`
+		);
+		setDialogActions([
+			{ label: 'Cancel', variant: 'cancel' },
+			{
+				label: 'Delete',
+				variant: 'danger',
+				onPress: async () => {
+					try {
+						await deleteExerciseFromWorkout(workout.id, normalizedExerciseId);
+						await loadHistory();
+					} catch (error) {
+						setDialogTitle('Error');
+						setDialogMessage('Failed to delete exercise history entry');
+						setDialogActions([{ label: 'OK', variant: 'cancel' }]);
+						setDialogVisible(true);
+					}
+				},
+			},
+		]);
+		setDialogVisible(true);
+	};
 
 	const getValidSets = (exercise: WorkoutExercise): ExerciseSet[] => {
 		return Array.isArray(exercise.sets)
@@ -101,9 +132,16 @@ export default function ExerciseHistoryScreen() {
 
 						return (
 							<View key={workout.id} style={styles.card}>
-								<Text style={styles.dateText}>
-									{format(new Date(workout.date), 'EEEE, MMM d, yyyy')}
-								</Text>
+								<View style={styles.cardHeader}>
+									<Text style={styles.dateText}>
+										{format(new Date(workout.date), 'EEEE, MMM d, yyyy')}
+									</Text>
+									<TouchableOpacity
+										onPress={() => handleDeleteHistoryEntry(workout)}
+									>
+										<Ionicons name="trash-outline" size={20} color="#ef4444" />
+									</TouchableOpacity>
+								</View>
 
 								<View style={styles.setsContainer}>
 									{sets.length === 0 ? (
@@ -125,6 +163,14 @@ export default function ExerciseHistoryScreen() {
 					})}
 				</ScrollView>
 			)}
+
+			<AppDialog
+				visible={dialogVisible}
+				title={dialogTitle}
+				message={dialogMessage}
+				actions={dialogActions}
+				onClose={() => setDialogVisible(false)}
+			/>
 		</View>
 	);
 }
@@ -154,6 +200,11 @@ const styles = StyleSheet.create({
 		padding: 16,
 		borderRadius: 12,
 		marginBottom: 12,
+	},
+	cardHeader: {
+		flexDirection: 'row',
+		justifyContent: 'space-between',
+		alignItems: 'center',
 	},
 	dateText: {
 		fontSize: 18,

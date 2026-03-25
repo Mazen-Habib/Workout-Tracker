@@ -1,3 +1,4 @@
+import { AppDialog, AppDialogAction } from '@/components/ui/app-dialog';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
@@ -12,7 +13,7 @@ import {
     View,
 } from 'react-native';
 import { Exercise, ExerciseLibrary } from './types/workout';
-import { addExercise, loadLibrary } from './utils/storage';
+import { addExercise, deleteExercise, loadLibrary, updateExerciseName } from './utils/storage';
 
 const WIDTH = Dimensions.get('window').width;
 
@@ -28,6 +29,11 @@ export default function SelectExerciseScreen() {
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [newExerciseName, setNewExerciseName] = useState('');
+  const [editingExerciseId, setEditingExerciseId] = useState<string | null>(null);
+  const [dialogVisible, setDialogVisible] = useState(false);
+  const [dialogTitle, setDialogTitle] = useState('');
+  const [dialogMessage, setDialogMessage] = useState('');
+  const [dialogActions, setDialogActions] = useState<AppDialogAction[]>([]);
 
   useEffect(() => {
     loadExerciseData();
@@ -66,19 +72,81 @@ export default function SelectExerciseScreen() {
     });
   };
 
-  const handleAddExercise = async () => {
+  const handleSaveExercise = async () => {
     if (newExerciseName.trim().length === 0) {
       return;
     }
 
     try {
-      await addExercise(sportId, categoryId, muscleId, newExerciseName.trim());
+      if (editingExerciseId) {
+        await updateExerciseName(
+          sportId,
+          categoryId,
+          muscleId,
+          editingExerciseId,
+          newExerciseName.trim()
+        );
+      } else {
+        await addExercise(sportId, categoryId, muscleId, newExerciseName.trim());
+      }
       setNewExerciseName('');
+      setEditingExerciseId(null);
       setModalVisible(false);
       await loadExerciseData();
     } catch (error) {
-      console.error('Error adding exercise:', error);
+      console.error('Error saving exercise:', error);
     }
+  };
+
+  const handleOpenAddExercise = () => {
+    setEditingExerciseId(null);
+    setNewExerciseName('');
+    setModalVisible(true);
+  };
+
+  const handleEditExercise = (exercise: Exercise) => {
+    setEditingExerciseId(exercise.id);
+    setNewExerciseName(exercise.name);
+    setModalVisible(true);
+  };
+
+  const handleDeleteExercise = (exercise: Exercise) => {
+    setDialogTitle(`Delete ${exercise.name}?`);
+    setDialogMessage('This action cannot be undone.');
+    setDialogActions([
+      { label: 'Cancel', variant: 'cancel' },
+      {
+        label: 'Delete',
+        variant: 'danger',
+        onPress: async () => {
+          try {
+            await deleteExercise(sportId, categoryId, muscleId, exercise.id);
+            await loadExerciseData();
+          } catch (error) {
+            setDialogTitle('Error');
+            setDialogMessage('Failed to delete exercise');
+            setDialogActions([{ label: 'OK', variant: 'cancel' }]);
+            setDialogVisible(true);
+          }
+        },
+      },
+    ]);
+    setDialogVisible(true);
+  };
+
+  const handleExerciseLongPress = (exercise: Exercise) => {
+    setDialogTitle(exercise.name);
+    setDialogMessage('Choose an action');
+    setDialogActions([
+      { label: 'Update Name', onPress: () => handleEditExercise(exercise) },
+      {
+        label: 'Delete Exercise',
+        variant: 'danger',
+        onPress: () => handleDeleteExercise(exercise),
+      },
+      { label: 'Cancel', variant: 'cancel' },
+    ]);
+    setDialogVisible(true);
   };
 
   const renderEmptyState = () => (
@@ -94,6 +162,7 @@ export default function SelectExerciseScreen() {
     <TouchableOpacity
       key={exercise.id}
       onPress={() => handleSelectExercise(exercise)}
+      onLongPress={() => handleExerciseLongPress(exercise)}
       activeOpacity={0.7}
       style={styles.exerciseCard}
     >
@@ -124,7 +193,7 @@ export default function SelectExerciseScreen() {
 
           <TouchableOpacity
             style={styles.fab}
-            onPress={() => setModalVisible(true)}
+            onPress={handleOpenAddExercise}
             activeOpacity={0.8}
           >
             <Ionicons name="add" size={32} color="#ffffff" />
@@ -138,7 +207,9 @@ export default function SelectExerciseScreen() {
           >
             <View style={styles.modalOverlay}>
               <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>Add New Exercise</Text>
+                <Text style={styles.modalTitle}>
+                  {editingExerciseId ? 'Update Exercise Name' : 'Add New Exercise'}
+                </Text>
                 <TextInput
                   style={styles.textInput}
                   placeholder="Enter exercise name"
@@ -150,20 +221,34 @@ export default function SelectExerciseScreen() {
                 <View style={styles.modalButtonContainer}>
                   <TouchableOpacity
                     style={styles.cancelButton}
-                    onPress={() => setModalVisible(false)}
+                    onPress={() => {
+                      setModalVisible(false);
+                      setEditingExerciseId(null);
+                      setNewExerciseName('');
+                    }}
                   >
                     <Text style={styles.cancelButtonText}>Cancel</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.addButton}
-                    onPress={handleAddExercise}
+                    onPress={handleSaveExercise}
                   >
-                    <Text style={styles.addButtonText}>Add Exercise</Text>
+                    <Text style={styles.addButtonText}>
+                      {editingExerciseId ? 'Update Exercise' : 'Add Exercise'}
+                    </Text>
                   </TouchableOpacity>
                 </View>
               </View>
             </View>
           </Modal>
+
+          <AppDialog
+            visible={dialogVisible}
+            title={dialogTitle}
+            message={dialogMessage}
+            actions={dialogActions}
+            onClose={() => setDialogVisible(false)}
+          />
         </>
       )}
     </View>

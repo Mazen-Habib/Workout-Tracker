@@ -1,3 +1,4 @@
+import { AppDialog, AppDialogAction } from '@/components/ui/app-dialog';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
@@ -12,7 +13,12 @@ import {
     View,
 } from 'react-native';
 import { ExerciseLibrary, MuscleGroup } from './types/workout';
-import { addMuscleGroup, loadLibrary } from './utils/storage';
+import {
+    addMuscleGroup,
+    deleteMuscleGroup,
+    loadLibrary,
+    updateMuscleGroupName,
+} from './utils/storage';
 
 const WIDTH = Dimensions.get('window').width;
 
@@ -27,6 +33,11 @@ export default function SelectMuscleScreen() {
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [newMuscleName, setNewMuscleName] = useState('');
+  const [editingMuscleId, setEditingMuscleId] = useState<string | null>(null);
+  const [dialogVisible, setDialogVisible] = useState(false);
+  const [dialogTitle, setDialogTitle] = useState('');
+  const [dialogMessage, setDialogMessage] = useState('');
+  const [dialogActions, setDialogActions] = useState<AppDialogAction[]>([]);
 
   useEffect(() => {
     loadMuscleGroupData();
@@ -57,19 +68,75 @@ export default function SelectMuscleScreen() {
     });
   };
 
-  const handleAddMuscle = async () => {
+  const handleSaveMuscle = async () => {
     if (newMuscleName.trim().length === 0) {
       return;
     }
 
     try {
-      await addMuscleGroup(sportId, categoryId, newMuscleName.trim());
+      if (editingMuscleId) {
+        await updateMuscleGroupName(sportId, categoryId, editingMuscleId, newMuscleName.trim());
+      } else {
+        await addMuscleGroup(sportId, categoryId, newMuscleName.trim());
+      }
       setNewMuscleName('');
+      setEditingMuscleId(null);
       setModalVisible(false);
       await loadMuscleGroupData();
     } catch (error) {
-      console.error('Error adding muscle group:', error);
+      console.error('Error saving muscle group:', error);
     }
+  };
+
+  const handleOpenAddMuscle = () => {
+    setEditingMuscleId(null);
+    setNewMuscleName('');
+    setModalVisible(true);
+  };
+
+  const handleEditMuscle = (muscleId: string, muscleName: string) => {
+    setEditingMuscleId(muscleId);
+    setNewMuscleName(muscleName);
+    setModalVisible(true);
+  };
+
+  const handleDeleteMuscle = (muscleId: string, muscleName: string) => {
+    setDialogTitle(`Delete ${muscleName}?`);
+    setDialogMessage('This will delete all sub categories and exercises.');
+    setDialogActions([
+      { label: 'Cancel', variant: 'cancel' },
+      {
+        label: 'Delete',
+        variant: 'danger',
+        onPress: async () => {
+          try {
+            await deleteMuscleGroup(sportId, categoryId, muscleId);
+            await loadMuscleGroupData();
+          } catch (error) {
+            setDialogTitle('Error');
+            setDialogMessage('Failed to delete muscle group');
+            setDialogActions([{ label: 'OK', variant: 'cancel' }]);
+            setDialogVisible(true);
+          }
+        },
+      },
+    ]);
+    setDialogVisible(true);
+  };
+
+  const handleMuscleLongPress = (muscleId: string, muscleName: string) => {
+    setDialogTitle(muscleName);
+    setDialogMessage('Choose an action');
+    setDialogActions([
+      { label: 'Update Name', onPress: () => handleEditMuscle(muscleId, muscleName) },
+      {
+        label: 'Delete Muscle Group',
+        variant: 'danger',
+        onPress: () => handleDeleteMuscle(muscleId, muscleName),
+      },
+      { label: 'Cancel', variant: 'cancel' },
+    ]);
+    setDialogVisible(true);
   };
 
   const renderEmptyState = () => (
@@ -85,6 +152,7 @@ export default function SelectMuscleScreen() {
     <TouchableOpacity
       key={muscleId}
       onPress={() => handleSelectMuscleGroup(muscleId)}
+      onLongPress={() => handleMuscleLongPress(muscleId, muscleName)}
       activeOpacity={0.7}
       style={styles.muscleCard}
     >
@@ -115,7 +183,7 @@ export default function SelectMuscleScreen() {
 
           <TouchableOpacity
             style={styles.fab}
-            onPress={() => setModalVisible(true)}
+            onPress={handleOpenAddMuscle}
             activeOpacity={0.8}
           >
             <Ionicons name="add" size={32} color="#ffffff" />
@@ -129,7 +197,9 @@ export default function SelectMuscleScreen() {
           >
             <View style={styles.modalOverlay}>
               <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>Add New Muscle Group</Text>
+                <Text style={styles.modalTitle}>
+                  {editingMuscleId ? 'Update Muscle Group Name' : 'Add New Muscle Group'}
+                </Text>
                 <TextInput
                   style={styles.textInput}
                   placeholder="Enter muscle name (e.g., Shoulders)"
@@ -141,20 +211,34 @@ export default function SelectMuscleScreen() {
                 <View style={styles.modalButtonContainer}>
                   <TouchableOpacity
                     style={styles.cancelButton}
-                    onPress={() => setModalVisible(false)}
+                    onPress={() => {
+                      setModalVisible(false);
+                      setEditingMuscleId(null);
+                      setNewMuscleName('');
+                    }}
                   >
                     <Text style={styles.cancelButtonText}>Cancel</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.addButton}
-                    onPress={handleAddMuscle}
+                    onPress={handleSaveMuscle}
                   >
-                    <Text style={styles.addButtonText}>Add Muscle</Text>
+                    <Text style={styles.addButtonText}>
+                      {editingMuscleId ? 'Update Muscle' : 'Add Muscle'}
+                    </Text>
                   </TouchableOpacity>
                 </View>
               </View>
             </View>
           </Modal>
+
+          <AppDialog
+            visible={dialogVisible}
+            title={dialogTitle}
+            message={dialogMessage}
+            actions={dialogActions}
+            onClose={() => setDialogVisible(false)}
+          />
         </>
       )}
     </View>

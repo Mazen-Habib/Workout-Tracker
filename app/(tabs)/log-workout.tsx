@@ -1,21 +1,24 @@
+import { AppDialog, AppDialogAction } from '@/components/ui/app-dialog';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
-  Dimensions,
-  Modal,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Dimensions,
+    Modal,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { ExerciseLibrary } from '../types/workout';
 import {
-  addSport,
-  initializeDefaultLibrary,
-  loadLibrary,
+    addSport,
+    deleteSport,
+    initializeDefaultLibrary,
+    loadLibrary,
+    updateSportName,
 } from '../utils/storage';
 
 const WIDTH = Dimensions.get('window').width;
@@ -25,7 +28,12 @@ export default function SelectSportScreen() {
   const [library, setLibrary] = useState<ExerciseLibrary>({ sports: [] });
   const [modalVisible, setModalVisible] = useState(false);
   const [newSportName, setNewSportName] = useState('');
+  const [editingSportId, setEditingSportId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [dialogVisible, setDialogVisible] = useState(false);
+  const [dialogTitle, setDialogTitle] = useState('');
+  const [dialogMessage, setDialogMessage] = useState('');
+  const [dialogActions, setDialogActions] = useState<AppDialogAction[]>([]);
 
   // Load library on mount and when screen comes into focus
   useFocusEffect(
@@ -49,20 +57,76 @@ export default function SelectSportScreen() {
     }
   };
 
-  const handleAddSport = async () => {
+  const handleSaveSport = async () => {
     if (newSportName.trim().length === 0) {
       return;
     }
 
     try {
-      await addSport(newSportName.trim());
+      if (editingSportId) {
+        await updateSportName(editingSportId, newSportName.trim());
+      } else {
+        await addSport(newSportName.trim());
+      }
       setNewSportName('');
+      setEditingSportId(null);
       setModalVisible(false);
       // Reload library after adding sport
       await loadLibraryData();
     } catch (error) {
-      console.error('Error adding sport:', error);
+      console.error('Error saving sport:', error);
     }
+  };
+
+  const handleOpenAddSport = () => {
+    setEditingSportId(null);
+    setNewSportName('');
+    setModalVisible(true);
+  };
+
+  const handleEditSport = (sportId: string, sportName: string) => {
+    setEditingSportId(sportId);
+    setNewSportName(sportName);
+    setModalVisible(true);
+  };
+
+  const handleDeleteSport = (sportId: string, sportName: string) => {
+    setDialogTitle(`Delete ${sportName}?`);
+    setDialogMessage('This will delete all sub categories and exercises.');
+    setDialogActions([
+      { label: 'Cancel', variant: 'cancel' },
+      {
+        label: 'Delete',
+        variant: 'danger',
+        onPress: async () => {
+          try {
+            await deleteSport(sportId);
+            await loadLibraryData();
+          } catch (error) {
+            setDialogTitle('Error');
+            setDialogMessage('Failed to delete category');
+            setDialogActions([{ label: 'OK', variant: 'cancel' }]);
+            setDialogVisible(true);
+          }
+        },
+      },
+    ]);
+    setDialogVisible(true);
+  };
+
+  const handleSportLongPress = (sportId: string, sportName: string) => {
+    setDialogTitle(sportName);
+    setDialogMessage('Choose an action');
+    setDialogActions([
+      { label: 'Update Name', onPress: () => handleEditSport(sportId, sportName) },
+      {
+        label: 'Delete Category',
+        variant: 'danger',
+        onPress: () => handleDeleteSport(sportId, sportName),
+      },
+      { label: 'Cancel', variant: 'cancel' },
+    ]);
+    setDialogVisible(true);
   };
 
   const handleSelectSport = (sportId: string) => {
@@ -85,6 +149,7 @@ export default function SelectSportScreen() {
     <TouchableOpacity
       key={sportId}
       onPress={() => handleSelectSport(sportId)}
+      onLongPress={() => handleSportLongPress(sportId, sportName)}
       activeOpacity={0.7}
       style={styles.sportCard}
     >
@@ -115,7 +180,7 @@ export default function SelectSportScreen() {
           {/* Floating Action Button - Add Sport */}
           <TouchableOpacity
             style={styles.fab}
-            onPress={() => setModalVisible(true)}
+            onPress={handleOpenAddSport}
             activeOpacity={0.8}
           >
             <Ionicons name="add" size={32} color="#ffffff" />
@@ -130,7 +195,9 @@ export default function SelectSportScreen() {
           >
             <View style={styles.modalOverlay}>
               <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>Add New Sport</Text>
+                <Text style={styles.modalTitle}>
+                  {editingSportId ? 'Update Category Name' : 'Add New Category'}
+                </Text>
                 <TextInput
                   style={styles.textInput}
                   placeholder="Enter sport name (e.g., Gym, Calisthenics)"
@@ -142,20 +209,34 @@ export default function SelectSportScreen() {
                 <View style={styles.modalButtonContainer}>
                   <TouchableOpacity
                     style={styles.cancelButton}
-                    onPress={() => setModalVisible(false)}
+                    onPress={() => {
+                      setModalVisible(false);
+                      setEditingSportId(null);
+                      setNewSportName('');
+                    }}
                   >
                     <Text style={styles.cancelButtonText}>Cancel</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.addButton}
-                    onPress={handleAddSport}
+                    onPress={handleSaveSport}
                   >
-                    <Text style={styles.addButtonText}>Add Sport</Text>
+                    <Text style={styles.addButtonText}>
+                      {editingSportId ? 'Update Category' : 'Add Category'}
+                    </Text>
                   </TouchableOpacity>
                 </View>
               </View>
             </View>
           </Modal>
+
+          <AppDialog
+            visible={dialogVisible}
+            title={dialogTitle}
+            message={dialogMessage}
+            actions={dialogActions}
+            onClose={() => setDialogVisible(false)}
+          />
         </>
       )}
     </View>
