@@ -125,10 +125,21 @@ export default function HistoryScreen() {
               <View key={exercise.id} style={styles.exerciseItem}>
                 <Text style={styles.exerciseNumber}>{index + 1}.</Text>
                 <View style={styles.exerciseDetails}>
-                  <Text style={styles.exerciseName}>{exercise.name}</Text>
-                  <Text style={styles.exerciseStats}>
-                    {exercise.sets} × {exercise.reps} @ {exercise.weight} lbs
-                  </Text>
+                  <Text style={styles.exerciseName}>{exercise.exerciseName}</Text>
+                  {exercise.sets && Array.isArray(exercise.sets) ? (
+                    <>
+                      <Text style={styles.exerciseStats}>
+                        {exercise.sets.length} sets
+                      </Text>
+                      {exercise.sets.map((set, setIndex) => (
+                        <Text key={set.id} style={styles.setDetail}>
+                          Set {setIndex + 1}: {set.reps} reps @ {set.weight} kg
+                        </Text>
+                      ))}
+                    </>
+                  ) : (
+                    <Text style={styles.exerciseStats}>No sets recorded</Text>
+                  )}
                 </View>
               </View>
             ))}
@@ -249,6 +260,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#9ca3af',
     marginTop: 2,
+  },
+  setDetail: {
+    fontSize: 13,
+    color: '#6b7280',
+    marginTop: 2,
+    marginLeft: 4,
   },
   notesSection: {
     marginTop: 12,

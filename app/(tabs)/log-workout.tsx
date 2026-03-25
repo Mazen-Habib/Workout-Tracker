@@ -1,206 +1,164 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useCallback, useState } from 'react';
 import {
-    Alert,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  Dimensions,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { Exercise, Workout } from '../types/workout';
-import { generateId } from '../utils/helpers';
-import { addWorkout } from '../utils/storage';
+import { ExerciseLibrary } from '../types/workout';
+import {
+  addSport,
+  initializeDefaultLibrary,
+  loadLibrary,
+} from '../utils/storage';
 
-export default function LogWorkoutScreen() {
+const WIDTH = Dimensions.get('window').width;
+
+export default function SelectSportScreen() {
   const router = useRouter();
-  
-  // Form state for new exercise
-  const [exerciseName, setExerciseName] = useState('');
-  const [sets, setSets] = useState('');
-  const [reps, setReps] = useState('');
-  const [weight, setWeight] = useState('');
-  
-  // List of exercises added to this workout
-  const [exercises, setExercises] = useState<Exercise[]>([]);
-  
-  // Workout duration
-  const [duration, setDuration] = useState('');
+  const [library, setLibrary] = useState<ExerciseLibrary>({ sports: [] });
+  const [modalVisible, setModalVisible] = useState(false);
+  const [newSportName, setNewSportName] = useState('');
+  const [loading, setLoading] = useState(true);
 
-  // Add exercise to the list
-  const handleAddExercise = () => {
-    // Validation
-    if (!exerciseName.trim()) {
-      Alert.alert('Error', 'Please enter exercise name');
-      return;
+  // Load library on mount and when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      loadLibraryData();
+    }, [])
+  );
+
+  const loadLibraryData = async () => {
+    try {
+      setLoading(true);
+      // Initialize default library on first load
+      await initializeDefaultLibrary();
+      // Load the library
+      const loadedLibrary = await loadLibrary();
+      setLibrary(loadedLibrary);
+    } catch (error) {
+      console.error('Error loading library:', error);
+    } finally {
+      setLoading(false);
     }
-    if (!sets || !reps || !weight) {
-      Alert.alert('Error', 'Please fill in sets, reps, and weight');
-      return;
-    }
-
-    const newExercise: Exercise = {
-      id: generateId(),
-      name: exerciseName.trim(),
-      sets: parseInt(sets),
-      reps: parseInt(reps),
-      weight: parseFloat(weight),
-    };
-
-    setExercises([...exercises, newExercise]);
-    
-    // Clear form
-    setExerciseName('');
-    setSets('');
-    setReps('');
-    setWeight('');
   };
 
-  // Remove exercise from list
-  const handleRemoveExercise = (id: string) => {
-    setExercises(exercises.filter(ex => ex.id !== id));
-  };
-
-  // Save the entire workout
-  const handleSaveWorkout = async () => {
-    // Validation
-    if (exercises.length === 0) {
-      Alert.alert('Error', 'Add at least one exercise');
+  const handleAddSport = async () => {
+    if (newSportName.trim().length === 0) {
       return;
     }
-    if (!duration) {
-      Alert.alert('Error', 'Please enter workout duration');
-      return;
-    }
-
-    const workout: Workout = {
-      id: generateId(),
-      date: new Date().toISOString(),
-      exercises: exercises,
-      duration: parseInt(duration),
-    };
 
     try {
-      await addWorkout(workout);
-      Alert.alert('Success', 'Workout saved!', [
-        {
-          text: 'OK',
-          onPress: () => {
-            // Clear form
-            setExercises([]);
-            setDuration('');
-            // Go to home screen
-            router.push('/');
-          },
-        },
-      ]);
+      await addSport(newSportName.trim());
+      setNewSportName('');
+      setModalVisible(false);
+      // Reload library after adding sport
+      await loadLibraryData();
     } catch (error) {
-      Alert.alert('Error', 'Failed to save workout');
+      console.error('Error adding sport:', error);
     }
   };
 
+  const handleSelectSport = (sportId: string) => {
+    router.push({
+      pathname: '/select-category',
+      params: { sportId },
+    });
+  };
+
+  const renderEmptyState = () => (
+    <View style={styles.emptyStateContainer}>
+      <Ionicons name="barbell" size={64} color="#6b7280" />
+      <Text style={styles.emptyStateText}>
+        No sports added. Tap + to create your first sport.
+      </Text>
+    </View>
+  );
+
+  const renderSportCard = (sportId: string, sportName: string) => (
+    <TouchableOpacity
+      key={sportId}
+      onPress={() => handleSelectSport(sportId)}
+      activeOpacity={0.7}
+      style={styles.sportCard}
+    >
+      <Text style={styles.sportName}>{sportName}</Text>
+      <Ionicons name="chevron-forward" size={24} color="#3b82f6" />
+    </TouchableOpacity>
+  );
+
   return (
-    <ScrollView style={styles.container}>
-      {/* Exercise Input Form */}
-      <View style={styles.formSection}>
-        <Text style={styles.sectionTitle}>Add Exercise</Text>
-        
-        <Text style={styles.label}>Exercise Name</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="e.g., Bench Press"
-          placeholderTextColor="#6b7280"
-          value={exerciseName}
-          onChangeText={setExerciseName}
-        />
-
-        <View style={styles.row}>
-          <View style={styles.smallInputContainer}>
-            <Text style={styles.label}>Sets</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="3"
-              placeholderTextColor="#6b7280"
-              keyboardType="number-pad"
-              value={sets}
-              onChangeText={setSets}
-            />
-          </View>
-
-          <View style={styles.smallInputContainer}>
-            <Text style={styles.label}>Reps</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="10"
-              placeholderTextColor="#6b7280"
-              keyboardType="number-pad"
-              value={reps}
-              onChangeText={setReps}
-            />
-          </View>
-
-          <View style={styles.smallInputContainer}>
-            <Text style={styles.label}>Weight (lbs)</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="135"
-              placeholderTextColor="#6b7280"
-              keyboardType="decimal-pad"
-              value={weight}
-              onChangeText={setWeight}
-            />
-          </View>
+    <View style={styles.container}>
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading...</Text>
         </View>
+      ) : (
+        <>
+          <ScrollView
+            contentContainerStyle={styles.sportsList}
+            scrollEnabled={library.sports.length > 0}
+          >
+            {library.sports.length === 0
+              ? renderEmptyState()
+              : library.sports.map((sport) =>
+                  renderSportCard(sport.id, sport.name)
+                )}
+          </ScrollView>
 
-        <TouchableOpacity style={styles.addButton} onPress={handleAddExercise}>
-          <Ionicons name="add" size={20} color="#ffffff" />
-          <Text style={styles.addButtonText}>Add Exercise</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Exercise List */}
-      {exercises.length > 0 && (
-        <View style={styles.exerciseListSection}>
-          <Text style={styles.sectionTitle}>Exercises ({exercises.length})</Text>
-          
-          {exercises.map((exercise) => (
-            <View key={exercise.id} style={styles.exerciseCard}>
-              <View style={styles.exerciseInfo}>
-                <Text style={styles.exerciseName}>{exercise.name}</Text>
-                <Text style={styles.exerciseDetails}>
-                  {exercise.sets} sets × {exercise.reps} reps @ {exercise.weight} lbs
-                </Text>
-              </View>
-              <TouchableOpacity onPress={() => handleRemoveExercise(exercise.id)}>
-                <Ionicons name="trash-outline" size={22} color="#ef4444" />
-              </TouchableOpacity>
-            </View>
-          ))}
-        </View>
-      )}
-
-      {/* Duration & Save */}
-      {exercises.length > 0 && (
-        <View style={styles.finalSection}>
-          <Text style={styles.label}>Workout Duration (minutes)</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="45"
-            placeholderTextColor="#6b7280"
-            keyboardType="number-pad"
-            value={duration}
-            onChangeText={setDuration}
-          />
-
-          <TouchableOpacity style={styles.saveButton} onPress={handleSaveWorkout}>
-            <Ionicons name="checkmark-circle" size={24} color="#ffffff" />
-            <Text style={styles.saveButtonText}>Save Workout</Text>
+          {/* Floating Action Button - Add Sport */}
+          <TouchableOpacity
+            style={styles.fab}
+            onPress={() => setModalVisible(true)}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="add" size={32} color="#ffffff" />
           </TouchableOpacity>
-        </View>
+
+          {/* Add Sport Modal */}
+          <Modal
+            visible={modalVisible}
+            transparent={true}
+            animationType="fade"
+            onRequestClose={() => setModalVisible(false)}
+          >
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalContent}>
+                <Text style={styles.modalTitle}>Add New Sport</Text>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="Enter sport name (e.g., Gym, Calisthenics)"
+                  placeholderTextColor="#9ca3af"
+                  value={newSportName}
+                  onChangeText={setNewSportName}
+                  autoFocus
+                />
+                <View style={styles.modalButtonContainer}>
+                  <TouchableOpacity
+                    style={styles.cancelButton}
+                    onPress={() => setModalVisible(false)}
+                  >
+                    <Text style={styles.cancelButtonText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.addButton}
+                    onPress={handleAddSport}
+                  >
+                    <Text style={styles.addButtonText}>Add Sport</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </Modal>
+        </>
       )}
-    </ScrollView>
+    </View>
   );
 }
 
@@ -209,96 +167,122 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#1a1a1a',
   },
-  formSection: {
-    padding: 20,
+  sportsList: {
+    paddingVertical: 16,
+    paddingHorizontal: 16,
   },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#ffffff',
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 14,
-    color: '#9ca3af',
-    marginBottom: 8,
-    fontWeight: '500',
-  },
-  input: {
+  sportCard: {
     backgroundColor: '#262626',
-    borderWidth: 1,
-    borderColor: '#374151',
-    borderRadius: 8,
-    padding: 12,
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    marginBottom: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  sportName: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#ffffff',
+    flex: 1,
+    textAlign: 'center',
+  },
+  emptyStateContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    minHeight: 400,
+  },
+  emptyStateText: {
+    color: '#9ca3af',
     fontSize: 16,
+    textAlign: 'center',
+    marginTop: 16,
+    maxWidth: WIDTH - 32,
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 24,
+    right: 24,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#3b82f6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#262626',
+    borderRadius: 16,
+    padding: 24,
+    width: Math.min(WIDTH - 32, 400),
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
     color: '#ffffff',
     marginBottom: 16,
   },
-  row: {
+  textInput: {
+    backgroundColor: '#1a1a1a',
+    borderColor: '#3b82f6',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    color: '#ffffff',
+    marginBottom: 24,
+    fontSize: 16,
+  },
+  modalButtonContainer: {
     flexDirection: 'row',
     gap: 12,
   },
-  smallInputContainer: {
+  cancelButton: {
     flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: '#374151',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   addButton: {
-    flexDirection: 'row',
-    backgroundColor: '#3b82f6',
-    padding: 14,
+    flex: 1,
+    paddingVertical: 12,
     borderRadius: 8,
-    alignItems: 'center',
+    backgroundColor: '#3b82f6',
     justifyContent: 'center',
-    gap: 8,
-    marginTop: 8,
+    alignItems: 'center',
   },
   addButtonText: {
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
   },
-  exerciseListSection: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-  },
-  exerciseCard: {
-    flexDirection: 'row',
-    backgroundColor: '#262626',
-    padding: 16,
-    borderRadius: 8,
-    marginBottom: 12,
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  exerciseInfo: {
+  loadingContainer: {
     flex: 1,
-  },
-  exerciseName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#ffffff',
-    marginBottom: 4,
-  },
-  exerciseDetails: {
-    fontSize: 14,
-    color: '#9ca3af',
-  },
-  finalSection: {
-    padding: 20,
-    paddingTop: 0,
-  },
-  saveButton: {
-    flexDirection: 'row',
-    backgroundColor: '#10b981',
-    padding: 16,
-    borderRadius: 8,
-    alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    marginTop: 8,
+    alignItems: 'center',
   },
-  saveButtonText: {
+  loadingText: {
     color: '#ffffff',
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 16,
   },
 });
