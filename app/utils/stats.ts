@@ -10,9 +10,11 @@ export const getTotalVolume = (workouts: Workout[]): number => {
   let total = 0;
   workouts.forEach(workout => {
     workout.exercises.forEach(exercise => {
-      exercise.sets.forEach(set => {
-        total += set.reps * set.weight;
-      });
+      if (exercise.sets && Array.isArray(exercise.sets)) {
+        exercise.sets.forEach(set => {
+          total += set.reps * set.weight;
+        });
+      }
     });
   });
   return total;
@@ -35,12 +37,14 @@ export const getPersonalRecords = (workouts: Workout[]): { name: string; weight:
   
   workouts.forEach(workout => {
     workout.exercises.forEach(exercise => {
-      exercise.sets.forEach(set => {
-        const currentMax = records.get(exercise.exerciseName) || 0;
-        if (set.weight > currentMax) {
-          records.set(exercise.exerciseName, set.weight);
-        }
-      });
+      if (exercise.sets && Array.isArray(exercise.sets)) {
+        exercise.sets.forEach(set => {
+          const currentMax = records.get(exercise.exerciseName) || 0;
+          if (set.weight > currentMax) {
+            records.set(exercise.exerciseName, set.weight);
+          }
+        });
+      }
     });
   });
 

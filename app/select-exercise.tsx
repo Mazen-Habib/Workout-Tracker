@@ -2,15 +2,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  Dimensions,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Dimensions,
+    Modal,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { Exercise, ExerciseLibrary } from './types/workout';
-import { loadLibrary } from './utils/storage';
+import { addExercise, loadLibrary } from './utils/storage';
 
 const WIDTH = Dimensions.get('window').width;
 
@@ -24,6 +26,8 @@ export default function SelectExerciseScreen() {
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [muscleName, setMuscleName] = useState<string>('');
   const [loading, setLoading] = useState(true);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [newExerciseName, setNewExerciseName] = useState('');
 
   useEffect(() => {
     loadExerciseData();
@@ -60,6 +64,21 @@ export default function SelectExerciseScreen() {
         exerciseName: exercise.name,
       },
     });
+  };
+
+  const handleAddExercise = async () => {
+    if (newExerciseName.trim().length === 0) {
+      return;
+    }
+
+    try {
+      await addExercise(sportId, categoryId, muscleId, newExerciseName.trim());
+      setNewExerciseName('');
+      setModalVisible(false);
+      await loadExerciseData();
+    } catch (error) {
+      console.error('Error adding exercise:', error);
+    }
   };
 
   const renderEmptyState = () => (
@@ -102,6 +121,49 @@ export default function SelectExerciseScreen() {
                   renderExerciseCard(exercise)
                 )}
           </ScrollView>
+
+          <TouchableOpacity
+            style={styles.fab}
+            onPress={() => setModalVisible(true)}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="add" size={32} color="#ffffff" />
+          </TouchableOpacity>
+
+          <Modal
+            visible={modalVisible}
+            transparent={true}
+            animationType="fade"
+            onRequestClose={() => setModalVisible(false)}
+          >
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalContent}>
+                <Text style={styles.modalTitle}>Add New Exercise</Text>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="Enter exercise name"
+                  placeholderTextColor="#9ca3af"
+                  value={newExerciseName}
+                  onChangeText={setNewExerciseName}
+                  autoFocus
+                />
+                <View style={styles.modalButtonContainer}>
+                  <TouchableOpacity
+                    style={styles.cancelButton}
+                    onPress={() => setModalVisible(false)}
+                  >
+                    <Text style={styles.cancelButtonText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.addButton}
+                    onPress={handleAddExercise}
+                  >
+                    <Text style={styles.addButtonText}>Add Exercise</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </Modal>
         </>
       )}
     </View>
@@ -163,5 +225,80 @@ const styles = StyleSheet.create({
   loadingText: {
     color: '#ffffff',
     fontSize: 16,
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 24,
+    right: 24,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#3b82f6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#262626',
+    borderRadius: 16,
+    padding: 24,
+    width: Math.min(WIDTH - 32, 400),
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#ffffff',
+    marginBottom: 16,
+  },
+  textInput: {
+    backgroundColor: '#1a1a1a',
+    borderColor: '#3b82f6',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    color: '#ffffff',
+    marginBottom: 24,
+    fontSize: 16,
+  },
+  modalButtonContainer: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  cancelButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: '#374151',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  addButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: '#3b82f6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  addButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

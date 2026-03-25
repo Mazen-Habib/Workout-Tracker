@@ -1,8 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Dimensions,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -31,6 +33,8 @@ export default function LogExerciseScreen() {
     { reps: '', weight: '' },
   ]);
   const [loading, setLoading] = useState(true);
+  const [newSetAdded, setNewSetAdded] = useState(false);
+  const setsScrollRef = useRef<ScrollView | null>(null);
 
   useEffect(() => {
     loadExerciseData();
@@ -57,6 +61,7 @@ export default function LogExerciseScreen() {
 
   const handleAddSet = () => {
     setSets([...sets, { reps: '', weight: '' }]);
+    setNewSetAdded(true);
   };
 
   const handleUpdateSet = (index: number, field: 'reps' | 'weight', value: string) => {
@@ -114,11 +119,33 @@ export default function LogExerciseScreen() {
     setSets(sets.filter((_, i) => i !== index));
   };
 
+  useEffect(() => {
+    if (!newSetAdded) {
+      return;
+    }
+
+    // Ensure we scroll to the newest set after it is rendered.
+    const timer = setTimeout(() => {
+      setsScrollRef.current?.scrollToEnd({ animated: true });
+      setNewSetAdded(false);
+    }, 120);
+
+    return () => clearTimeout(timer);
+  }, [newSetAdded]);
+
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={90}
+      enabled={Platform.OS === 'ios'}
+    >
       <Stack.Screen
         options={{
           title: exerciseName || 'Log Exercise',
+          contentStyle: {
+            backgroundColor: '#1a1a1a',
+          },
           headerRight: () => (
             <TouchableOpacity
               onPress={() =>
@@ -151,8 +178,17 @@ export default function LogExerciseScreen() {
           <Text style={styles.sectionTitle}>Today’s Workout</Text>
           
           <ScrollView
+            ref={setsScrollRef}
+            style={styles.setsScrollView}
             contentContainerStyle={styles.setsList}
-            scrollEnabled={sets.length > 3}
+            keyboardShouldPersistTaps="handled"
+            scrollEventThrottle={16}
+            removeClippedSubviews={true}
+            onContentSizeChange={() => {
+              if (newSetAdded) {
+                setsScrollRef.current?.scrollToEnd({ animated: true });
+              }
+            }}
           >
             {sets.map((set, index) => (
               <View key={index} style={styles.setCard}>
@@ -214,7 +250,7 @@ export default function LogExerciseScreen() {
           </View>
         </>
       )}
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -244,9 +280,13 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingHorizontal: 16,
   },
+  setsScrollView: {
+    flex: 1,
+  },
   setsList: {
     paddingVertical: 16,
     paddingHorizontal: 16,
+    paddingBottom: 24,
   },
   setCard: {
     backgroundColor: '#262626',

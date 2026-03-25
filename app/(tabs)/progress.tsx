@@ -5,11 +5,11 @@ import { Dimensions, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BarChart } from 'react-native-chart-kit';
 import { Workout } from '../types/workout';
 import {
-    getPersonalRecords,
-    getTotalExercises,
-    getTotalVolume,
-    getUniqueExercises,
-    getWorkoutsByWeek,
+  getPersonalRecords,
+  getTotalExercises,
+  getTotalVolume,
+  getUniqueExercises,
+  getWorkoutsByWeek,
 } from '../utils/stats';
 import { loadWorkouts } from '../utils/storage';
 
@@ -95,7 +95,7 @@ export default function ProgressScreen() {
         <View style={styles.statBox}>
           <Ionicons name="flame" size={24} color="#ef4444" />
           <Text style={styles.statNumber}>{Math.round(totalVolume / 1000)}k</Text>
-          <Text style={styles.statLabel}>Total Volume (lbs)</Text>
+          <Text style={styles.statLabel}>Total Volume (Kg)</Text>
         </View>
       </View>
 
@@ -141,7 +141,7 @@ export default function ProgressScreen() {
               </View>
               <View style={styles.recordInfo}>
                 <Text style={styles.recordName}>{record.name}</Text>
-                <Text style={styles.recordWeight}>{record.weight} lbs</Text>
+                <Text style={styles.recordWeight}>{record.weight} kg</Text>
               </View>
             </View>
           ))}

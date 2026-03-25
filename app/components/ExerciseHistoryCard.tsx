@@ -1,12 +1,17 @@
 import { format } from 'date-fns';
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { Workout, WorkoutExercise } from '../types/workout';
+import { ExerciseSet, Workout, WorkoutExercise } from '../types/workout';
 import { loadWorkouts } from '../utils/storage';
 
 interface ExerciseHistoryCardProps {
   exerciseId: string;
   exerciseName: string;
+}
+
+interface ExercisePr {
+  set: ExerciseSet;
+  workoutDate: string;
 }
 
 export default function ExerciseHistoryCard({
@@ -15,6 +20,29 @@ export default function ExerciseHistoryCard({
 }: ExerciseHistoryCardProps) {
   const [lastWorkout, setLastWorkout] = useState<Workout | null>(null);
   const [lastExercise, setLastExercise] = useState<WorkoutExercise | null>(null);
+  const [exercisePr, setExercisePr] = useState<ExercisePr | null>(null);
+
+  const getValidSets = (exercise: WorkoutExercise): ExerciseSet[] => {
+    const rawSets = (exercise as WorkoutExercise & { sets?: unknown }).sets;
+
+    if (!Array.isArray(rawSets)) {
+      return [];
+    }
+
+    return rawSets
+      .map((set) => set as { id?: string; reps?: number; weight?: number })
+      .filter(
+        (set) =>
+          typeof set.id === 'string' &&
+          typeof set.reps === 'number' &&
+          typeof set.weight === 'number'
+      )
+      .map((set) => ({
+        id: set.id as string,
+        reps: set.reps as number,
+        weight: set.weight as number,
+      }));
+  };
 
   useEffect(() => {
     const loadExerciseHistory = async () => {
@@ -29,11 +57,36 @@ export default function ExerciseHistoryCard({
           (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
         );
 
+        let bestPr: ExercisePr | null = null;
+        sortedByDate.forEach((workout) => {
+          workout.exercises
+            .filter((exercise) => exercise.exerciseId === exerciseId)
+            .forEach((exercise) => {
+              getValidSets(exercise).forEach((set) => {
+                if (!bestPr) {
+                  bestPr = { set, workoutDate: workout.date };
+                  return;
+                }
+
+                const isBetterWeight = set.weight > bestPr.set.weight;
+                const isSameWeightBetterReps =
+                  set.weight === bestPr.set.weight && set.reps > bestPr.set.reps;
+
+                if (isBetterWeight || isSameWeightBetterReps) {
+                  bestPr = { set, workoutDate: workout.date };
+                }
+              });
+            });
+        });
+
+        setExercisePr(bestPr);
+
         const mostRecentWorkout = sortedByDate[0];
 
         if (!mostRecentWorkout) {
           setLastWorkout(null);
           setLastExercise(null);
+          setExercisePr(null);
           return;
         }
 
@@ -47,6 +100,7 @@ export default function ExerciseHistoryCard({
         console.error('Error loading exercise history:', error);
         setLastWorkout(null);
         setLastExercise(null);
+        setExercisePr(null);
       }
     };
 
@@ -58,29 +112,20 @@ export default function ExerciseHistoryCard({
       return null;
     }
 
-    const rawSets = (lastExercise as WorkoutExercise & { sets?: unknown }).sets;
+    const validSets = getValidSets(lastExercise);
 
-    if (!Array.isArray(rawSets)) {
+    if (validSets.length === 0) {
       return (
         <Text style={styles.emptyText}>No previous workout for this exercise</Text>
       );
     }
 
-    if (rawSets.length === 0) {
-      return (
-        <Text style={styles.emptyText}>No previous workout for this exercise</Text>
-      );
-    }
-
-    return rawSets.map((set, index) => {
-      const maybeSet = set as { id?: string; reps?: number; weight?: number };
-      const setKey = maybeSet.id ?? `${exerciseId}-${index}`;
-      const reps = typeof maybeSet.reps === 'number' ? maybeSet.reps : 0;
-      const weight = typeof maybeSet.weight === 'number' ? maybeSet.weight : 0;
+    return validSets.map((set, index) => {
+      const setKey = set.id ?? `${exerciseId}-${index}`;
 
       return (
         <Text key={setKey} style={styles.setText}>
-          Set {index + 1}: {reps} reps × {weight} kg
+          Set {index + 1}: {set.reps} reps × {set.weight} kg
         </Text>
       );
     });
@@ -96,8 +141,27 @@ export default function ExerciseHistoryCard({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.headerText}>Last Workout</Text>
-      <Text style={styles.dateText}>{format(new Date(lastWorkout.date), 'MMM d, yyyy')}</Text>
+      <View style={styles.headerRow}>
+        <View>
+          <Text style={styles.headerText}>Last Workout</Text>
+          <Text style={styles.dateText}>{format(new Date(lastWorkout.date), 'MMM d, yyyy')}</Text>
+        </View>
+        <View style={styles.prContainer}>
+          <Text style={styles.prLabel}>All-Time Max</Text>
+          {exercisePr ? (
+            <>
+              <Text style={styles.prValue}>
+                {exercisePr.set.weight} kg x {exercisePr.set.reps}
+              </Text>
+              <Text style={styles.prDate}>
+                {format(new Date(exercisePr.workoutDate), 'MMM d, yyyy')}
+              </Text>
+            </>
+          ) : (
+            <Text style={styles.prDate}>No PR yet</Text>
+          )}
+        </View>
+      </View>
       <View style={styles.separator} />
       {renderSetLines()}
     </View>
@@ -117,10 +181,37 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textTransform: 'uppercase',
   },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
   dateText: {
     fontSize: 14,
     color: '#9ca3af',
     marginTop: 4,
+  },
+  prContainer: {
+    alignItems: 'flex-end',
+    maxWidth: '58%',
+  },
+  prLabel: {
+    fontSize: 11,
+    color: '#9ca3af',
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  prValue: {
+    fontSize: 14,
+    color: '#3b82f6',
+    fontWeight: '700',
+    marginTop: 4,
+  },
+  prDate: {
+    fontSize: 12,
+    color: '#9ca3af',
+    marginTop: 2,
   },
   separator: {
     height: 1,

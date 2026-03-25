@@ -1,6 +1,7 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { View } from 'react-native';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -24,10 +25,31 @@ const darkHeaderOptions = {
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  
+  const customTheme = colorScheme === 'dark' ? {
+    ...DarkTheme,
+    colors: {
+      ...DarkTheme.colors,
+      background: '#1a1a1a',
+    },
+  } : {
+    ...DefaultTheme,
+    colors: {
+      ...DefaultTheme.colors,
+      background: '#1a1a1a',
+    },
+  };
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
+    <View style={{ flex: 1, backgroundColor: '#1a1a1a' }}>
+      <ThemeProvider value={customTheme}>
+        <Stack
+          screenOptions={{
+            contentStyle: { backgroundColor: '#1a1a1a' },
+            headerStyle: { backgroundColor: '#1a1a1a' },
+            headerTintColor: '#ffffff',
+          }}
+        >
         {/* Main Tab Navigation */}
         <Stack.Screen
           name="(tabs)"
@@ -51,7 +73,11 @@ export default function RootLayout() {
           name="select-category"
           options={{
             presentation: 'modal',
+            animation: 'none',
             title: 'Select Category',
+            contentStyle: {
+              backgroundColor: '#1a1a1a',
+            },
             ...darkHeaderOptions,
           }}
         />
@@ -60,7 +86,11 @@ export default function RootLayout() {
           name="select-muscle"
           options={{
             presentation: 'modal',
+            animation: 'none',
             title: 'Select Muscle Group',
+            contentStyle: {
+              backgroundColor: '#1a1a1a',
+            },
             ...darkHeaderOptions,
           }}
         />
@@ -69,7 +99,11 @@ export default function RootLayout() {
           name="select-exercise"
           options={{
             presentation: 'modal',
+            animation: 'none',
             title: 'Select Exercise',
+            contentStyle: {
+              backgroundColor: '#1a1a1a',
+            },
             ...darkHeaderOptions,
           }}
         />
@@ -78,7 +112,11 @@ export default function RootLayout() {
           name="log-exercise"
           options={{
             presentation: 'modal',
+            animation: 'none',
             title: 'Log Exercise',
+            contentStyle: {
+              backgroundColor: '#1a1a1a',
+            },
             ...darkHeaderOptions,
           }}
         />
@@ -88,6 +126,9 @@ export default function RootLayout() {
           options={{
             title: 'Exercise History',
             presentation: 'card',
+            contentStyle: {
+              backgroundColor: '#1a1a1a',
+            },
             headerStyle: { backgroundColor: '#1a1a1a' },
             headerTintColor: '#ffffff',
           }}
@@ -95,5 +136,6 @@ export default function RootLayout() {
       </Stack>
       <StatusBar style="auto" />
     </ThemeProvider>
+    </View>
   );
 }
