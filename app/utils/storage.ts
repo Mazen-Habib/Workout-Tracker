@@ -376,3 +376,37 @@ export const initializeDefaultLibrary = async (): Promise<void> => {
   library.sports.push(gymSport);
   await saveLibrary(library);
 };
+
+// ==========================================
+// QUICK NOTES STORAGE
+// ==========================================
+
+const NOTES_KEY = '@quick-notes';
+
+interface QuickNote {
+  id: string;
+  text: string;
+  createdAt: string;
+}
+
+// Load all notes from storage
+export const loadNotes = async (): Promise<QuickNote[]> => {
+  try {
+    const jsonValue = await AsyncStorage.getItem(NOTES_KEY);
+    return jsonValue != null ? JSON.parse(jsonValue) : [];
+  } catch (error) {
+    console.error('Error loading notes:', error);
+    return [];
+  }
+};
+
+// Save all notes to storage
+export const saveNotes = async (notes: QuickNote[]): Promise<void> => {
+  try {
+    const jsonValue = JSON.stringify(notes);
+    await AsyncStorage.setItem(NOTES_KEY, jsonValue);
+  } catch (error) {
+    console.error('Error saving notes:', error);
+    throw error;
+  }
+};
