@@ -24,7 +24,6 @@ export default function NotesScreen() {
   const [notes, setNotes] = useState<QuickNote[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalText, setModalText] = useState('');
-  const [expandedNoteId, setExpandedNoteId] = useState<string | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
 
   // Load notes when screen comes into focus
@@ -102,10 +101,6 @@ export default function NotesScreen() {
     ]);
   };
 
-  const toggleExpandNote = (noteId: string) => {
-    setExpandedNoteId(expandedNoteId === noteId ? null : noteId);
-  };
-
   const getRelativeTime = (dateString: string) => {
     try {
       return formatDistanceToNow(new Date(dateString), { addSuffix: true });
@@ -115,8 +110,6 @@ export default function NotesScreen() {
   };
 
   const renderNoteItem = ({ item }: { item: QuickNote }) => {
-    const isExpanded = expandedNoteId === item.id;
-
     return (
       <TouchableOpacity
         onPress={() => handleOpenEditModal(item.id)}
@@ -127,13 +120,7 @@ export default function NotesScreen() {
           <View style={styles.noteContent}>
             <View style={styles.noteHeader}>
               <Text style={styles.bullet}>•</Text>
-              <Text
-                style={[
-                  styles.noteText,
-                  !isExpanded && { numberOfLines: 3 },
-                ]}
-                numberOfLines={isExpanded ? undefined : 3}
-              >
+              <Text style={styles.noteText} numberOfLines={3}>
                 {item.text}
               </Text>
             </View>
