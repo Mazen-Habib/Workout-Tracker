@@ -277,7 +277,7 @@ export default function LogExerciseScreen() {
         options={{
           title: exerciseName || 'Log Exercise',
           contentStyle: {
-            backgroundColor: '#1a1a1a',
+            backgroundColor: '#f8fafc',
           },
           headerRight: () => (
             <View style={styles.headerActions}>
@@ -472,18 +472,18 @@ export default function LogExerciseScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#f8fafc',
   },
   title: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#ffffff',
+    color: '#0f172a',
     paddingHorizontal: 16,
     paddingTop: 16,
   },
   subtitle: {
     fontSize: 14,
-    color: '#9ca3af',
+    color: '#64748b',
     paddingHorizontal: 16,
     marginBottom: 12,
   },
@@ -507,8 +507,8 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     borderRadius: 12,
     overflow: 'hidden',
-    backgroundColor: '#262626',
-    borderColor: '#374151',
+    backgroundColor: '#ffffff',
+    borderColor: '#e2e8f0',
     borderWidth: 1,
   },
   exerciseImage: {
@@ -555,8 +555,8 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#334155',
-    backgroundColor: '#1f2937',
+    borderColor: '#e2e8f0',
+    backgroundColor: '#ffffff',
     padding: 14,
   },
   noteHeaderRow: {
@@ -566,7 +566,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   noteTitle: {
-    color: '#f9fafb',
+    color: '#334155',
     fontSize: 14,
     fontWeight: '700',
     textTransform: 'uppercase',
@@ -605,13 +605,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   noteBody: {
-    color: '#e5e7eb',
+    color: '#334155',
     fontSize: 14,
     lineHeight: 20,
     marginTop: 12,
   },
   noteEmpty: {
-    color: '#94a3b8',
+    color: '#64748b',
     fontSize: 13,
     marginTop: 12,
     lineHeight: 18,
@@ -620,31 +620,31 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(15, 23, 42, 0.35)',
     paddingHorizontal: 16,
   },
   modalContent: {
     width: '100%',
     maxWidth: 420,
-    backgroundColor: '#1f2937',
+    backgroundColor: '#ffffff',
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#e2e8f0',
     padding: 16,
   },
   modalTitle: {
-    color: '#f9fafb',
+    color: '#0f172a',
     fontSize: 18,
     fontWeight: '700',
     marginBottom: 12,
   },
   noteInput: {
     minHeight: 120,
-    color: '#f9fafb',
+    color: '#0f172a',
     borderWidth: 1,
-    borderColor: '#475569',
+    borderColor: '#cbd5e1',
     borderRadius: 10,
-    backgroundColor: '#111827',
+    backgroundColor: '#ffffff',
     paddingHorizontal: 12,
     paddingVertical: 10,
     textAlignVertical: 'top',
@@ -656,7 +656,7 @@ const styles = StyleSheet.create({
   },
   modalCancelButton: {
     flex: 1,
-    backgroundColor: '#374151',
+    backgroundColor: '#e2e8f0',
     paddingVertical: 11,
     borderRadius: 8,
     alignItems: 'center',
@@ -669,7 +669,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalCancelText: {
-    color: '#ffffff',
+    color: '#0f172a',
     fontWeight: '600',
   },
   modalSaveText: {
@@ -679,7 +679,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#ffffff',
+    color: '#0f172a',
     marginBottom: 12,
     marginTop: 8,
     paddingHorizontal: 16,
@@ -690,7 +690,7 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   setCard: {
-    backgroundColor: '#262626',
+    backgroundColor: '#ffffff',
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
@@ -698,7 +698,7 @@ const styles = StyleSheet.create({
   setLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#ffffff',
+    color: '#0f172a',
     marginBottom: 12,
   },
   inputRow: {
@@ -710,17 +710,17 @@ const styles = StyleSheet.create({
   },
   inputLabel: {
     fontSize: 12,
-    color: '#9ca3af',
+    color: '#64748b',
     marginBottom: 6,
   },
   input: {
-    backgroundColor: '#1a1a1a',
-    borderColor: '#3b82f6',
+    backgroundColor: '#ffffff',
+    borderColor: '#cbd5e1',
     borderWidth: 1,
     borderRadius: 8,
     paddingVertical: 10,
     paddingHorizontal: 12,
-    color: '#ffffff',
+    color: '#0f172a',
     fontSize: 16,
   },
   removeButton: {
@@ -737,7 +737,7 @@ const styles = StyleSheet.create({
   },
   addSetButton: {
     flex: 1,
-    backgroundColor: '#374151',
+    backgroundColor: '#e2e8f0',
     paddingVertical: 12,
     borderRadius: 8,
     flexDirection: 'row',
@@ -746,7 +746,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   addSetButtonText: {
-    color: '#ffffff',
+    color: '#0f172a',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -769,7 +769,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    color: '#ffffff',
+    color: '#0f172a',
     fontSize: 16,
   },
 });

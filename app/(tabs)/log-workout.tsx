@@ -279,14 +279,14 @@ export default function SelectSportScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#f8fafc',
   },
   sportsList: {
     paddingVertical: 16,
     paddingHorizontal: 16,
   },
   sportCard: {
-    backgroundColor: '#262626',
+    backgroundColor: '#ffffff',
     borderRadius: 12,
     paddingVertical: 16,
     paddingHorizontal: 16,
@@ -298,13 +298,13 @@ const styles = StyleSheet.create({
   sportName: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#ffffff',
+    color: '#0f172a',
   },
   sportTextContainer: {
     flex: 1,
   },
   sportFlowText: {
-    color: '#9ca3af',
+    color: '#64748b',
     marginTop: 4,
     fontSize: 13,
   },
@@ -315,7 +315,7 @@ const styles = StyleSheet.create({
     minHeight: 400,
   },
   emptyStateText: {
-    color: '#9ca3af',
+    color: '#64748b',
     fontSize: 16,
     textAlign: 'center',
     marginTop: 16,
@@ -339,12 +339,12 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(15, 23, 42, 0.35)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: '#262626',
+    backgroundColor: '#ffffff',
     borderRadius: 16,
     padding: 24,
     width: Math.min(WIDTH - 32, 400),
@@ -352,17 +352,17 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#ffffff',
+    color: '#0f172a',
     marginBottom: 16,
   },
   textInput: {
-    backgroundColor: '#1a1a1a',
-    borderColor: '#3b82f6',
+    backgroundColor: '#ffffff',
+    borderColor: '#cbd5e1',
     borderWidth: 1,
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 16,
-    color: '#ffffff',
+    color: '#0f172a',
     marginBottom: 24,
     fontSize: 16,
   },
@@ -374,12 +374,12 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   switchTitle: {
-    color: '#ffffff',
+    color: '#0f172a',
     fontSize: 16,
     fontWeight: '600',
   },
   switchSubtitle: {
-    color: '#9ca3af',
+    color: '#64748b',
     marginTop: 4,
     fontSize: 13,
   },
@@ -391,12 +391,12 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 12,
     borderRadius: 8,
-    backgroundColor: '#374151',
+    backgroundColor: '#e2e8f0',
     justifyContent: 'center',
     alignItems: 'center',
   },
   cancelButtonText: {
-    color: '#ffffff',
+    color: '#0f172a',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -419,7 +419,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    color: '#ffffff',
+    color: '#0f172a',
     fontSize: 16,
   },
 });

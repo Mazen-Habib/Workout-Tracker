@@ -2,14 +2,14 @@ import { formatDistanceToNow } from 'date-fns';
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
-    Alert,
-    FlatList,
-    Modal,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  Alert,
+  FlatList,
+  Modal,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { generateId } from '../utils/helpers';
 import { loadNotes, saveNotes } from '../utils/storage';
@@ -222,7 +222,7 @@ export default function NotesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#f8fafc',
   },
   header: {
     flexDirection: 'row',
@@ -232,12 +232,12 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#374151',
+    borderBottomColor: '#e2e8f0',
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: '600',
-    color: '#ffffff',
+    color: '#0f172a',
   },
   addButton: {
     width: 40,
@@ -259,7 +259,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#374151',
+    borderBottomColor: '#e2e8f0',
   },
   noteContent: {
     flex: 1,
@@ -277,12 +277,12 @@ const styles = StyleSheet.create({
   noteText: {
     flex: 1,
     fontSize: 16,
-    color: '#ffffff',
+    color: '#0f172a',
     lineHeight: 24,
   },
   timestamp: {
     fontSize: 12,
-    color: '#6b7280',
+    color: '#64748b',
     marginTop: 4,
     marginLeft: 24,
   },
@@ -294,7 +294,7 @@ const styles = StyleSheet.create({
   },
   emptyStateText: {
     fontSize: 16,
-    color: '#6b7280',
+    color: '#64748b',
     textAlign: 'center',
   },
   modalOverlay: {
@@ -303,7 +303,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#2a2a2a',
+    backgroundColor: '#ffffff',
     paddingTop: 24,
     paddingHorizontal: 16,
     paddingBottom: 32,
@@ -313,20 +313,20 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#ffffff',
+    color: '#0f172a',
     marginBottom: 16,
   },
   textInput: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#ffffff',
     borderRadius: 8,
     padding: 12,
-    color: '#ffffff',
+    color: '#0f172a',
     fontSize: 16,
     minHeight: 120,
     textAlignVertical: 'top',
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: '#cbd5e1',
   },
   modalButtons: {
     flexDirection: 'row',
@@ -340,7 +340,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cancelButton: {
-    backgroundColor: '#374151',
+    backgroundColor: '#e2e8f0',
   },
   saveButton: {
     backgroundColor: '#3b82f6',
@@ -348,7 +348,7 @@ const styles = StyleSheet.create({
   buttonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#ffffff',
+    color: '#0f172a',
   },
   saveButtonText: {
     fontSize: 16,

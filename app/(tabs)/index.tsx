@@ -194,24 +194,24 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#f8fafc',
   },
   backgroundImage: {
     ...StyleSheet.absoluteFillObject,
   },
   backgroundOverlay: {
-    backgroundColor: 'rgba(10, 15, 22, 0.7)',
+    backgroundColor: 'rgba(248, 250, 252, 0.68)',
   },
   headerIconButton: {
     marginRight: 14,
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: 'rgba(17, 24, 39, 0.75)',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#1f2937',
+    borderColor: '#dbeafe',
   },
   scroll: {
     flex: 1,
@@ -226,11 +226,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#ffffff',
+    color: '#0f172a',
   },
   date: {
     fontSize: 14,
-    color: '#d1d5db',
+    color: '#64748b',
     marginTop: 4,
   },
   statsContainer: {
@@ -240,12 +240,12 @@ const styles = StyleSheet.create({
   },
   statBox: {
     flex: 1,
-    backgroundColor: 'rgba(31, 41, 55, 0.85)',
+    backgroundColor: '#ffffff',
     padding: 20,
     borderRadius: 12,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: '#e2e8f0',
   },
   statNumber: {
     fontSize: 36,
@@ -254,7 +254,7 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: 14,
-    color: '#cbd5e1',
+    color: '#64748b',
     marginTop: 4,
   },
   startButton: {
@@ -284,18 +284,18 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   emptyText: {
-    color: '#cbd5e1',
+    color: '#64748b',
     fontSize: 16,
     textAlign: 'center',
     marginTop: 20,
   },
   workoutCard: {
-    backgroundColor: 'rgba(31, 41, 55, 0.85)',
+    backgroundColor: '#ffffff',
     padding: 16,
     borderRadius: 12,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: '#e2e8f0',
   },
   workoutHeader: {
     flexDirection: 'row',
@@ -305,11 +305,11 @@ const styles = StyleSheet.create({
   workoutDate: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#ffffff',
+    color: '#0f172a',
   },
   workoutExercises: {
     fontSize: 14,
-    color: '#cbd5e1',
+    color: '#64748b',
     marginTop: 4,
   },
 });

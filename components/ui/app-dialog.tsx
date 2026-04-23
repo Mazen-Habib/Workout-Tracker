@@ -46,6 +46,7 @@ export function AppDialog({ visible, title, message, actions, onClose }: AppDial
 
               if (variant === 'cancel') {
                 buttonStyles.push(styles.cancelButton);
+                textStyles.push(styles.cancelText);
               }
 
               return (
@@ -69,7 +70,7 @@ export function AppDialog({ visible, title, message, actions, onClose }: AppDial
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.72)',
+    backgroundColor: 'rgba(15, 23, 42, 0.35)',
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 20,
@@ -77,21 +78,21 @@ const styles = StyleSheet.create({
   container: {
     width: '100%',
     maxWidth: 420,
-    backgroundColor: '#262626',
+    backgroundColor: '#ffffff',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: '#e2e8f0',
     padding: 20,
   },
   title: {
     fontSize: 19,
     fontWeight: '700',
-    color: '#ffffff',
+    color: '#0f172a',
   },
   message: {
     marginTop: 10,
     fontSize: 15,
-    color: '#9ca3af',
+    color: '#64748b',
     lineHeight: 21,
   },
   actionsContainer: {
@@ -120,6 +121,9 @@ const styles = StyleSheet.create({
     color: '#fecaca',
   },
   cancelButton: {
-    backgroundColor: '#374151',
+    backgroundColor: '#e2e8f0',
+  },
+  cancelText: {
+    color: '#0f172a',
   },
 });

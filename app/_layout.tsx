@@ -1,53 +1,43 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { View } from 'react-native';
 import 'react-native-reanimated';
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export const unstable_settings = {
   anchor: '(tabs)',
 };
 
-// Header options for dark theme
-const darkHeaderOptions = {
+const lightHeaderOptions = {
   headerStyle: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#ffffff',
   },
-  headerTintColor: '#ffffff',
+  headerTintColor: '#0f172a',
   headerTitleStyle: {
-    color: '#ffffff',
+    color: '#0f172a',
     fontSize: 18,
     fontWeight: '600' as const,
   },
 };
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
-  
-  const customTheme = colorScheme === 'dark' ? {
-    ...DarkTheme,
-    colors: {
-      ...DarkTheme.colors,
-      background: '#1a1a1a',
-    },
-  } : {
+  const customTheme = {
     ...DefaultTheme,
     colors: {
       ...DefaultTheme.colors,
-      background: '#1a1a1a',
+      background: '#f8fafc',
     },
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#1a1a1a' }}>
+    <View style={{ flex: 1, backgroundColor: '#f8fafc' }}>
       <ThemeProvider value={customTheme}>
         <Stack
           screenOptions={{
-            contentStyle: { backgroundColor: '#1a1a1a' },
-            headerStyle: { backgroundColor: '#1a1a1a' },
-            headerTintColor: '#ffffff',
+            contentStyle: { backgroundColor: '#f8fafc' },
+            headerStyle: { backgroundColor: '#ffffff' },
+            headerTintColor: '#0f172a',
           }}
         >
         {/* Main Tab Navigation */}
@@ -64,7 +54,7 @@ export default function RootLayout() {
           options={{
             presentation: 'modal',
             title: 'Modal',
-            ...darkHeaderOptions,
+            ...lightHeaderOptions,
           }}
         />
 
@@ -76,9 +66,9 @@ export default function RootLayout() {
             animation: 'none',
             title: 'Select Category',
             contentStyle: {
-              backgroundColor: '#1a1a1a',
+              backgroundColor: '#f8fafc',
             },
-            ...darkHeaderOptions,
+            ...lightHeaderOptions,
           }}
         />
 
@@ -89,9 +79,9 @@ export default function RootLayout() {
             animation: 'none',
             title: 'Select Muscle Group',
             contentStyle: {
-              backgroundColor: '#1a1a1a',
+              backgroundColor: '#f8fafc',
             },
-            ...darkHeaderOptions,
+            ...lightHeaderOptions,
           }}
         />
 
@@ -102,9 +92,9 @@ export default function RootLayout() {
             animation: 'none',
             title: 'Select Exercise',
             contentStyle: {
-              backgroundColor: '#1a1a1a',
+              backgroundColor: '#f8fafc',
             },
-            ...darkHeaderOptions,
+            ...lightHeaderOptions,
           }}
         />
 
@@ -115,9 +105,9 @@ export default function RootLayout() {
             animation: 'none',
             title: 'Log Exercise',
             contentStyle: {
-              backgroundColor: '#1a1a1a',
+              backgroundColor: '#f8fafc',
             },
-            ...darkHeaderOptions,
+            ...lightHeaderOptions,
           }}
         />
 
@@ -127,10 +117,10 @@ export default function RootLayout() {
             title: 'Exercise History',
             presentation: 'card',
             contentStyle: {
-              backgroundColor: '#1a1a1a',
+              backgroundColor: '#f8fafc',
             },
-            headerStyle: { backgroundColor: '#1a1a1a' },
-            headerTintColor: '#ffffff',
+            headerStyle: { backgroundColor: '#ffffff' },
+            headerTintColor: '#0f172a',
           }}
         />
       </Stack>

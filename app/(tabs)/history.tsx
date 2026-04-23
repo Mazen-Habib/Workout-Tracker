@@ -217,11 +217,11 @@ export default function HistoryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#f8fafc',
   },
   centerContainer: {
     flex: 1,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#f8fafc',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 20,
@@ -233,11 +233,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#ffffff',
+    color: '#0f172a',
   },
   subtitle: {
     fontSize: 14,
-    color: '#9ca3af',
+    color: '#64748b',
     marginTop: 4,
   },
   headerRow: {
@@ -265,17 +265,17 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#ffffff',
+    color: '#0f172a',
     marginTop: 16,
   },
   emptyText: {
     fontSize: 16,
-    color: '#6b7280',
+    color: '#64748b',
     textAlign: 'center',
     marginTop: 8,
   },
   workoutCard: {
-    backgroundColor: '#262626',
+    backgroundColor: '#ffffff',
     marginHorizontal: 20,
     marginBottom: 16,
     padding: 16,
@@ -294,11 +294,11 @@ const styles = StyleSheet.create({
   workoutDate: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#ffffff',
+    color: '#0f172a',
   },
   workoutTime: {
     fontSize: 14,
-    color: '#9ca3af',
+    color: '#64748b',
     marginTop: 2,
   },
   statsRow: {
@@ -307,7 +307,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#374151',
+    borderBottomColor: '#e2e8f0',
   },
   statItem: {
     flexDirection: 'row',
@@ -316,7 +316,7 @@ const styles = StyleSheet.create({
   },
   statText: {
     fontSize: 14,
-    color: '#9ca3af',
+    color: '#64748b',
   },
   exerciseList: {
     gap: 8,
@@ -327,7 +327,7 @@ const styles = StyleSheet.create({
   },
   exerciseNumber: {
     fontSize: 14,
-    color: '#6b7280',
+    color: '#64748b',
     fontWeight: '600',
   },
   exerciseDetails: {
@@ -335,17 +335,17 @@ const styles = StyleSheet.create({
   },
   exerciseName: {
     fontSize: 16,
-    color: '#ffffff',
+    color: '#0f172a',
     fontWeight: '500',
   },
   exerciseStats: {
     fontSize: 14,
-    color: '#9ca3af',
+    color: '#64748b',
     marginTop: 2,
   },
   setDetail: {
     fontSize: 13,
-    color: '#6b7280',
+    color: '#64748b',
     marginTop: 2,
     marginLeft: 4,
   },
@@ -353,17 +353,17 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#374151',
+    borderTopColor: '#e2e8f0',
   },
   notesLabel: {
     fontSize: 12,
-    color: '#6b7280',
+    color: '#64748b',
     fontWeight: '600',
     marginBottom: 4,
   },
   notesText: {
     fontSize: 14,
-    color: '#9ca3af',
+    color: '#64748b',
     fontStyle: 'italic',
   },
 });

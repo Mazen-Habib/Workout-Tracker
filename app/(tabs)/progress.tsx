@@ -5,11 +5,11 @@ import { Dimensions, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BarChart } from 'react-native-chart-kit';
 import { Workout } from '../types/workout';
 import {
-  getPersonalRecords,
-  getTotalExercises,
-  getTotalVolume,
-  getUniqueExercises,
-  getWorkoutsByWeek,
+    getPersonalRecords,
+    getTotalExercises,
+    getTotalVolume,
+    getUniqueExercises,
+    getWorkoutsByWeek,
 } from '../utils/stats';
 import { loadWorkouts } from '../utils/storage';
 
@@ -113,12 +113,12 @@ export default function ProgressScreen() {
           yAxisLabel=""
           yAxisSuffix=""
           chartConfig={{
-            backgroundColor: '#262626',
-            backgroundGradientFrom: '#262626',
-            backgroundGradientTo: '#262626',
+            backgroundColor: '#ffffff',
+            backgroundGradientFrom: '#ffffff',
+            backgroundGradientTo: '#ffffff',
             decimalPlaces: 0,
             color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
-            labelColor: (opacity = 1) => `rgba(156, 163, 175, ${opacity})`,
+            labelColor: (opacity = 1) => `rgba(100, 116, 139, ${opacity})`,
             style: {
               borderRadius: 16,
             },
@@ -154,11 +154,11 @@ export default function ProgressScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#f8fafc',
   },
   centerContainer: {
     flex: 1,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#f8fafc',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 20,
@@ -170,22 +170,22 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#ffffff',
+    color: '#0f172a',
   },
   subtitle: {
     fontSize: 16,
-    color: '#9ca3af',
+    color: '#64748b',
     marginTop: 4,
   },
   emptyTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#ffffff',
+    color: '#0f172a',
     marginTop: 16,
   },
   emptyText: {
     fontSize: 16,
-    color: '#6b7280',
+    color: '#64748b',
     textAlign: 'center',
     marginTop: 8,
   },
@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
   },
   statBox: {
     flex: 1,
-    backgroundColor: '#262626',
+    backgroundColor: '#ffffff',
     padding: 20,
     borderRadius: 12,
     alignItems: 'center',
@@ -205,12 +205,12 @@ const styles = StyleSheet.create({
   statNumber: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#ffffff',
+    color: '#0f172a',
     marginTop: 8,
   },
   statLabel: {
     fontSize: 12,
-    color: '#9ca3af',
+    color: '#64748b',
     marginTop: 4,
     textAlign: 'center',
   },
@@ -221,12 +221,12 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#ffffff',
+    color: '#0f172a',
     marginBottom: 4,
   },
   chartSubtitle: {
     fontSize: 14,
-    color: '#9ca3af',
+    color: '#64748b',
     marginBottom: 16,
   },
   chart: {
@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
   },
   recordCard: {
     flexDirection: 'row',
-    backgroundColor: '#262626',
+    backgroundColor: '#ffffff',
     padding: 16,
     borderRadius: 12,
     marginBottom: 12,
@@ -264,7 +264,7 @@ const styles = StyleSheet.create({
   recordName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#ffffff',
+    color: '#0f172a',
   },
   recordWeight: {
     fontSize: 14,

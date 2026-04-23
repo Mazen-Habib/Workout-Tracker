@@ -100,13 +100,13 @@ export default function ExerciseHistoryScreen() {
 	const getValidSets = (exercise: WorkoutExercise): ExerciseSet[] => {
 		return Array.isArray(exercise.sets)
 			? exercise.sets.filter(
-					(set) => typeof set.reps === 'number' && typeof set.weight === 'number'
+					(set) => typeof set.reps === 'number' && (typeof set.weight === 'number' || set.weight === null)
 				)
 			: [];
 	};
 
 	const getTotalVolume = (sets: ExerciseSet[]): number => {
-		return sets.reduce((sum, set) => sum + set.reps * set.weight, 0);
+		return sets.reduce((sum, set) => sum + (typeof set.weight === 'number' ? set.reps * set.weight : 0), 0);
 	};
 
 	return (
@@ -149,7 +149,7 @@ export default function ExerciseHistoryScreen() {
 									) : (
 										sets.map((set, index) => (
 											<Text key={set.id} style={styles.setText}>
-												Set {index + 1}: {set.reps} reps × {set.weight} kg
+												Set {index + 1}: {typeof set.weight === 'number' ? `${set.reps} reps × ${set.weight} kg` : `${set.reps} reps`}
 											</Text>
 										))
 									)}
@@ -178,7 +178,7 @@ export default function ExerciseHistoryScreen() {
 const styles = StyleSheet.create({
 	container: {
 		flex: 1,
-		backgroundColor: '#1a1a1a',
+		backgroundColor: '#f8fafc',
 	},
 	scrollContent: {
 		padding: 16,
@@ -193,10 +193,10 @@ const styles = StyleSheet.create({
 		marginTop: 12,
 		textAlign: 'center',
 		fontSize: 16,
-		color: '#9ca3af',
+		color: '#64748b',
 	},
 	card: {
-		backgroundColor: '#262626',
+		backgroundColor: '#ffffff',
 		padding: 16,
 		borderRadius: 12,
 		marginBottom: 12,
@@ -209,7 +209,7 @@ const styles = StyleSheet.create({
 	dateText: {
 		fontSize: 18,
 		fontWeight: '700',
-		color: '#ffffff',
+		color: '#0f172a',
 	},
 	setsContainer: {
 		marginTop: 12,
@@ -218,7 +218,7 @@ const styles = StyleSheet.create({
 	},
 	setText: {
 		fontSize: 14,
-		color: '#9ca3af',
+		color: '#64748b',
 	},
 	volumeText: {
 		fontSize: 15,
