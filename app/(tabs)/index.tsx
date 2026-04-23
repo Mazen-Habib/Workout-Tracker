@@ -1,90 +1,193 @@
 import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
-import React from 'react';
-import { useRouter, useFocusEffect } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
+import { useFocusEffect, useNavigation, useRouter } from 'expo-router';
+import React, { useCallback, useLayoutEffect, useState } from 'react';
+import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Workout } from '../types/workout';
-import { loadWorkouts } from '../utils/storage';
+import {
+    loadHomeBackgroundImage,
+    loadWorkouts,
+    removeHomeBackgroundImage,
+    saveHomeBackgroundImage,
+} from '../utils/storage';
 
 export default function HomeScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [loading, setLoading] = useState(true);
+  const [backgroundUri, setBackgroundUri] = useState<string | null>(null);
 
-  // Load workouts when screen appears
-  // Load workouts when screen appears AND when it comes into focus
-  useFocusEffect(
-  React.useCallback(() => {
-    loadWorkoutsData();
-  }, [])
-);
-
-  const loadWorkoutsData = async () => {
+  const loadHomeData = useCallback(async () => {
     try {
-      const data = await loadWorkouts();
-      setWorkouts(data);
+      const [workoutData, homeBackground] = await Promise.all([
+        loadWorkouts(),
+        loadHomeBackgroundImage(),
+      ]);
+      setWorkouts(workoutData);
+      setBackgroundUri(homeBackground);
     } catch (error) {
-      console.error('Error loading workouts:', error);
+      console.error('Error loading home data:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  // Calculate stats
+  useFocusEffect(
+    useCallback(() => {
+      loadHomeData();
+    }, [loadHomeData])
+  );
+
+  const handlePickFromLibrary = useCallback(async () => {
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert('Permission needed', 'Enable photo library access to set a home background image.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        quality: 0.8,
+      });
+
+      if (result.canceled || result.assets.length === 0) {
+        return;
+      }
+
+      const uri = result.assets[0].uri;
+      await saveHomeBackgroundImage(uri);
+      setBackgroundUri(uri);
+    } catch (error) {
+      console.error('Error selecting home background image:', error);
+      Alert.alert('Could not set background', 'Please try again.');
+    }
+  }, []);
+
+  const handleTakePhoto = useCallback(async () => {
+    try {
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert('Permission needed', 'Enable camera access to capture a home background image.');
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        quality: 0.8,
+      });
+
+      if (result.canceled || result.assets.length === 0) {
+        return;
+      }
+
+      const uri = result.assets[0].uri;
+      await saveHomeBackgroundImage(uri);
+      setBackgroundUri(uri);
+    } catch (error) {
+      console.error('Error capturing home background image:', error);
+      Alert.alert('Could not set background', 'Please try again.');
+    }
+  }, []);
+
+  const handleBackgroundAction = useCallback(() => {
+    const options = [
+      { text: 'Take Photo', onPress: handleTakePhoto },
+      { text: 'Choose from Gallery', onPress: handlePickFromLibrary },
+    ];
+
+    if (backgroundUri) {
+      options.push({
+        text: 'Remove Background',
+        onPress: async () => {
+          try {
+            await removeHomeBackgroundImage();
+            setBackgroundUri(null);
+          } catch (error) {
+            console.error('Error removing home background image:', error);
+            Alert.alert('Could not remove background', 'Please try again.');
+          }
+        },
+      });
+    }
+
+    Alert.alert('Home Background', 'Choose an action', [
+      ...options,
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  }, [backgroundUri, handlePickFromLibrary, handleTakePhoto]);
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity style={styles.headerIconButton} onPress={handleBackgroundAction}>
+          <Ionicons name="image-outline" size={22} color="#60a5fa" />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, handleBackgroundAction]);
+
   const totalWorkouts = workouts.length;
-  const recentWorkouts = workouts.slice(0, 3); // Get last 3 workouts
+  const recentWorkouts = workouts.slice(0, 3);
 
   return (
-    <ScrollView style={styles.container}>
-      {/* Header Section */}
-      <View style={styles.header}>
-        <Text style={styles.title}>Workout Tracker</Text>
-        <Text style={styles.date}>{format(new Date(), 'EEEE, MMMM d, yyyy')}</Text>
-      </View>
+    <View style={styles.container}>
+      {backgroundUri ? <Image source={{ uri: backgroundUri }} style={styles.backgroundImage} contentFit="cover" /> : null}
+      <View style={[StyleSheet.absoluteFillObject, styles.backgroundOverlay]} />
 
-      {/* Stats Section */}
-      <View style={styles.statsContainer}>
-        <View style={styles.statBox}>
-          <Text style={styles.statNumber}>{totalWorkouts}</Text>
-          <Text style={styles.statLabel}>Total Workouts</Text>
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Workout Tracker</Text>
+          <Text style={styles.date}>{format(new Date(), 'EEEE, MMMM d, yyyy')}</Text>
         </View>
-      </View>
 
-      {/* Start Workout Button */}
-      <TouchableOpacity 
-        style={styles.startButton}
-        onPress={() => router.push('/log-workout')}
-      >
-        <Ionicons name="add-circle" size={24} color="#ffffff" />
-        <Text style={styles.startButtonText}>Start New Workout</Text>
-      </TouchableOpacity>
+        <View style={styles.statsContainer}>
+          <View style={styles.statBox}>
+            <Text style={styles.statNumber}>{totalWorkouts}</Text>
+            <Text style={styles.statLabel}>Total Workouts</Text>
+          </View>
+        </View>
 
-      {/* Recent Workouts Section */}
-      <View style={styles.recentSection}>
-        <Text style={styles.sectionTitle}>Recent Workouts</Text>
-        
-        {loading ? (
-          <Text style={styles.emptyText}>Loading...</Text>
-        ) : recentWorkouts.length === 0 ? (
-          <Text style={styles.emptyText}>No workouts yet. Start your first one!</Text>
-        ) : (
-          recentWorkouts.map((workout) => (
-            <View key={workout.id} style={styles.workoutCard}>
-              <View style={styles.workoutHeader}>
-                <Text style={styles.workoutDate}>
-                  {format(new Date(workout.date), 'MMM d, yyyy')}
-                </Text>
-                <Text style={styles.workoutDuration}>{workout.duration} min</Text>
-              </View>
-              <Text style={styles.workoutExercises}>
-                {workout.exercises.length} exercises
-              </Text>
-            </View>
-          ))
-        )}
-      </View>
-    </ScrollView>
+        <TouchableOpacity style={styles.startButton} onPress={() => router.push('/log-workout')}>
+          <Ionicons name="add-circle" size={24} color="#ffffff" />
+          <Text style={styles.startButtonText}>Start New Workout</Text>
+        </TouchableOpacity>
+
+        <View style={styles.recentSection}>
+          <Text style={styles.sectionTitle}>Recent Workouts</Text>
+
+          {loading ? (
+            <Text style={styles.emptyText}>Loading...</Text>
+          ) : recentWorkouts.length === 0 ? (
+            <Text style={styles.emptyText}>No workouts yet. Start your first one!</Text>
+          ) : (
+            recentWorkouts.map((workout) => (
+              <TouchableOpacity
+                key={workout.id}
+                style={styles.workoutCard}
+                activeOpacity={0.85}
+                onPress={() =>
+                  router.push({
+                    pathname: '/history',
+                    params: { workoutId: workout.id },
+                  })
+                }
+              >
+                <View style={styles.workoutHeader}>
+                  <Text style={styles.workoutDate}>{format(new Date(workout.date), 'MMM d, yyyy')}</Text>
+                  <Ionicons name="chevron-forward" size={18} color="#93c5fd" />
+                </View>
+                <Text style={styles.workoutExercises}>{workout.exercises.length} exercises</Text>
+              </TouchableOpacity>
+            ))
+          )}
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -92,6 +195,29 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#1a1a1a',
+  },
+  backgroundImage: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  backgroundOverlay: {
+    backgroundColor: 'rgba(10, 15, 22, 0.7)',
+  },
+  headerIconButton: {
+    marginRight: 14,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(17, 24, 39, 0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#1f2937',
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 24,
   },
   header: {
     padding: 20,
@@ -104,7 +230,7 @@ const styles = StyleSheet.create({
   },
   date: {
     fontSize: 14,
-    color: '#9ca3af',
+    color: '#d1d5db',
     marginTop: 4,
   },
   statsContainer: {
@@ -114,24 +240,26 @@ const styles = StyleSheet.create({
   },
   statBox: {
     flex: 1,
-    backgroundColor: '#262626',
+    backgroundColor: 'rgba(31, 41, 55, 0.85)',
     padding: 20,
     borderRadius: 12,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#374151',
   },
   statNumber: {
     fontSize: 36,
     fontWeight: 'bold',
-    color: '#3b82f6',
+    color: '#60a5fa',
   },
   statLabel: {
     fontSize: 14,
-    color: '#9ca3af',
+    color: '#cbd5e1',
     marginTop: 4,
   },
   startButton: {
     flexDirection: 'row',
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#2563eb',
     marginHorizontal: 20,
     marginTop: 24,
     padding: 16,
@@ -156,16 +284,18 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   emptyText: {
-    color: '#6b7280',
+    color: '#cbd5e1',
     fontSize: 16,
     textAlign: 'center',
     marginTop: 20,
   },
   workoutCard: {
-    backgroundColor: '#262626',
+    backgroundColor: 'rgba(31, 41, 55, 0.85)',
     padding: 16,
     borderRadius: 12,
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#374151',
   },
   workoutHeader: {
     flexDirection: 'row',
@@ -177,13 +307,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#ffffff',
   },
-  workoutDuration: {
-    fontSize: 14,
-    color: '#3b82f6',
-  },
   workoutExercises: {
     fontSize: 14,
-    color: '#9ca3af',
+    color: '#cbd5e1',
     marginTop: 4,
   },
 });

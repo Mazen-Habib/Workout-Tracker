@@ -22,10 +22,11 @@ export default function SelectExerciseScreen() {
   const { sportId, categoryId, muscleId } = useLocalSearchParams<{
     sportId: string;
     categoryId: string;
-    muscleId: string;
+    muscleId?: string;
   }>();
   const [exercises, setExercises] = useState<Exercise[]>([]);
-  const [muscleName, setMuscleName] = useState<string>('');
+  const [sourceName, setSourceName] = useState<string>('');
+  const [isCategoryFlow, setIsCategoryFlow] = useState(false);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [newExerciseName, setNewExerciseName] = useState('');
@@ -39,17 +40,28 @@ export default function SelectExerciseScreen() {
     loadExerciseData();
   }, []);
 
+  const sportIdString = Array.isArray(sportId) ? sportId[0] : sportId;
+  const categoryIdString = Array.isArray(categoryId) ? categoryId[0] : categoryId;
+  const muscleIdString = Array.isArray(muscleId) ? muscleId[0] : muscleId;
+
   const loadExerciseData = async () => {
     try {
       setLoading(true);
       const library: ExerciseLibrary = await loadLibrary();
-      const sport = library.sports.find((s) => s.id === sportId);
-      const category = sport?.categories.find((c) => c.id === categoryId);
-      const muscle = category?.muscleGroups.find((m) => m.id === muscleId);
+      const sport = library.sports.find((s) => s.id === sportIdString);
+      const category = sport?.categories.find((c) => c.id === categoryIdString);
+      const muscle = muscleIdString
+        ? category?.muscleGroups.find((m) => m.id === muscleIdString)
+        : undefined;
       
       if (muscle) {
-        setMuscleName(muscle.name);
+        setSourceName(muscle.name);
+        setIsCategoryFlow(false);
         setExercises(muscle.exercises);
+      } else if (category) {
+        setSourceName(category.name);
+        setIsCategoryFlow(true);
+        setExercises(category.exercises || []);
       }
     } catch (error) {
       console.error('Error loading exercises:', error);
@@ -63,9 +75,9 @@ export default function SelectExerciseScreen() {
     router.push({
       pathname: '/log-exercise',
       params: {
-        sportId,
-        categoryId,
-        muscleId,
+        sportId: sportIdString,
+        categoryId: categoryIdString,
+        ...(muscleIdString ? { muscleId: muscleIdString } : {}),
         exerciseId: exercise.id,
         exerciseName: exercise.name,
       },
@@ -80,14 +92,14 @@ export default function SelectExerciseScreen() {
     try {
       if (editingExerciseId) {
         await updateExerciseName(
-          sportId,
-          categoryId,
-          muscleId,
+          sportIdString,
+          categoryIdString,
+          muscleIdString || null,
           editingExerciseId,
           newExerciseName.trim()
         );
       } else {
-        await addExercise(sportId, categoryId, muscleId, newExerciseName.trim());
+        await addExercise(sportIdString, categoryIdString, muscleIdString || null, newExerciseName.trim());
       }
       setNewExerciseName('');
       setEditingExerciseId(null);
@@ -120,7 +132,7 @@ export default function SelectExerciseScreen() {
         variant: 'danger',
         onPress: async () => {
           try {
-            await deleteExercise(sportId, categoryId, muscleId, exercise.id);
+            await deleteExercise(sportIdString, categoryIdString, muscleIdString || null, exercise.id);
             await loadExerciseData();
           } catch (error) {
             setDialogTitle('Error');
@@ -153,7 +165,9 @@ export default function SelectExerciseScreen() {
     <View style={styles.emptyStateContainer}>
       <Ionicons name="barbell" size={64} color="#6b7280" />
       <Text style={styles.emptyStateText}>
-        No exercises available for this muscle group.
+        {isCategoryFlow
+          ? 'No exercises available for this category.'
+          : 'No exercises available for this muscle group.'}
       </Text>
     </View>
   );
@@ -179,7 +193,7 @@ export default function SelectExerciseScreen() {
         </View>
       ) : (
         <>
-          <Text style={styles.title}>{muscleName} - Exercises</Text>
+          <Text style={styles.title}>{sourceName} - Exercises</Text>
           <ScrollView
             contentContainerStyle={styles.exercisesList}
             scrollEnabled={exercises.length > 3}

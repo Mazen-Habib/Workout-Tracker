@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
@@ -6,7 +7,6 @@ import { loadWorkouts } from '../utils/storage';
 
 interface ExerciseHistoryCardProps {
   exerciseId: string;
-  exerciseName: string;
 }
 
 interface ExercisePr {
@@ -16,7 +16,6 @@ interface ExercisePr {
 
 export default function ExerciseHistoryCard({
   exerciseId,
-  exerciseName,
 }: ExerciseHistoryCardProps) {
   const [lastWorkout, setLastWorkout] = useState<Workout | null>(null);
   const [lastExercise, setLastExercise] = useState<WorkoutExercise | null>(null);
@@ -30,17 +29,17 @@ export default function ExerciseHistoryCard({
     }
 
     return rawSets
-      .map((set) => set as { id?: string; reps?: number; weight?: number })
+      .map((set) => set as { id?: string; reps?: number; weight?: number | null })
       .filter(
         (set) =>
           typeof set.id === 'string' &&
           typeof set.reps === 'number' &&
-          typeof set.weight === 'number'
+          (typeof set.weight === 'number' || set.weight === null || typeof set.weight === 'undefined')
       )
       .map((set) => ({
         id: set.id as string,
         reps: set.reps as number,
-        weight: set.weight as number,
+        weight: typeof set.weight === 'number' ? set.weight : null,
       }));
   };
 
@@ -63,7 +62,16 @@ export default function ExerciseHistoryCard({
             .filter((exercise) => exercise.exerciseId === exerciseId)
             .forEach((exercise) => {
               getValidSets(exercise).forEach((set) => {
+                if (typeof set.weight !== 'number') {
+                  return;
+                }
+
                 if (!bestPr) {
+                  bestPr = { set, workoutDate: workout.date };
+                  return;
+                }
+
+                if (typeof bestPr.set.weight !== 'number') {
                   bestPr = { set, workoutDate: workout.date };
                   return;
                 }
@@ -124,9 +132,14 @@ export default function ExerciseHistoryCard({
       const setKey = set.id ?? `${exerciseId}-${index}`;
 
       return (
-        <Text key={setKey} style={styles.setText}>
-          Set {index + 1}: {set.reps} reps × {set.weight} kg
-        </Text>
+        <View key={setKey} style={styles.setRow}>
+          <Text style={styles.setNumber}>Set {index + 1}</Text>
+          <Text style={styles.setValue}>
+            {typeof set.weight === 'number'
+              ? `${set.reps} reps x ${set.weight} kg`
+              : `${set.reps} reps`}
+          </Text>
+        </View>
       );
     });
   };
@@ -141,28 +154,33 @@ export default function ExerciseHistoryCard({
 
   return (
     <View style={styles.container}>
-      <View style={styles.headerRow}>
-        <View>
-          <Text style={styles.headerText}>Last Workout</Text>
-          <Text style={styles.dateText}>{format(new Date(lastWorkout.date), 'MMM d, yyyy')}</Text>
+      <View style={styles.topRow}>
+        <View style={styles.titleGroup}>
+          <Ionicons name="time-outline" size={16} color="#93c5fd" />
+          <Text style={styles.topLabel}>Last Workout Snapshot</Text>
         </View>
-        <View style={styles.prContainer}>
-          <Text style={styles.prLabel}>All-Time Max</Text>
-          {exercisePr ? (
-            <>
-              <Text style={styles.prValue}>
-                {exercisePr.set.weight} kg x {exercisePr.set.reps}
-              </Text>
-              <Text style={styles.prDate}>
-                {format(new Date(exercisePr.workoutDate), 'MMM d, yyyy')}
-              </Text>
-            </>
-          ) : (
-            <Text style={styles.prDate}>No PR yet</Text>
-          )}
+        <View style={styles.datePill}>
+          <Text style={styles.datePillText}>{format(new Date(lastWorkout.date), 'MMM d, yyyy')}</Text>
         </View>
       </View>
+
+      <View style={styles.metricCard}>
+        <Text style={styles.metricLabel}>All-Time Max</Text>
+        {exercisePr ? (
+          <>
+            <Text style={styles.prValueMain}>
+              {exercisePr.set.weight} kg x {exercisePr.set.reps}
+            </Text>
+            <Text style={styles.prDate}>
+              {format(new Date(exercisePr.workoutDate), 'MMM d, yyyy')}
+            </Text>
+          </>
+        ) : (
+          <Text style={styles.prDate}>No PR yet</Text>
+        )}
+      </View>
       <View style={styles.separator} />
+      <Text style={styles.setsHeader}>Sets from last session</Text>
       {renderSetLines()}
     </View>
   );
@@ -174,43 +192,62 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#374151',
   },
-  headerText: {
-    fontSize: 12,
-    color: '#9ca3af',
-    fontWeight: '600',
-    textTransform: 'uppercase',
-  },
-  headerRow: {
+  topRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: 10,
+    alignItems: 'center',
+    marginBottom: 12,
   },
-  dateText: {
-    fontSize: 14,
-    color: '#9ca3af',
-    marginTop: 4,
+  titleGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
-  prContainer: {
-    alignItems: 'flex-end',
-    maxWidth: '58%',
+  topLabel: {
+    fontSize: 12,
+    color: '#93c5fd',
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.7,
   },
-  prLabel: {
+  datePill: {
+    backgroundColor: '#1f2937',
+    borderRadius: 999,
+    borderColor: '#475569',
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  datePillText: {
+    fontSize: 12,
+    color: '#cbd5e1',
+    fontWeight: '600',
+  },
+  metricCard: {
+    backgroundColor: '#1f2937',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#334155',
+    padding: 10,
+  },
+  metricLabel: {
     fontSize: 11,
-    color: '#9ca3af',
+    color: '#94a3b8',
     fontWeight: '700',
     textTransform: 'uppercase',
   },
-  prValue: {
+  prValueMain: {
     fontSize: 14,
-    color: '#3b82f6',
+    color: '#60a5fa',
     fontWeight: '700',
-    marginTop: 4,
+    marginTop: 5,
   },
   prDate: {
-    fontSize: 12,
-    color: '#9ca3af',
+    fontSize: 11,
+    color: '#94a3b8',
     marginTop: 2,
   },
   separator: {
@@ -218,10 +255,34 @@ const styles = StyleSheet.create({
     backgroundColor: '#374151',
     marginVertical: 12,
   },
-  setText: {
-    fontSize: 14,
-    color: '#ffffff',
-    marginBottom: 4,
+  setsHeader: {
+    color: '#cbd5e1',
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    marginBottom: 8,
+  },
+  setRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#111827',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#1f2937',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginBottom: 6,
+  },
+  setNumber: {
+    color: '#9ca3af',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  setValue: {
+    color: '#f9fafb',
+    fontSize: 13,
+    fontWeight: '700',
   },
   emptyText: {
     fontSize: 14,

@@ -7,12 +7,13 @@ import {
     Modal,
     ScrollView,
     StyleSheet,
+    Switch,
     Text,
     TextInput,
     TouchableOpacity,
     View,
 } from 'react-native';
-import { ExerciseLibrary } from '../types/workout';
+import { ExerciseLibrary, Sport } from '../types/workout';
 import {
     addSport,
     deleteSport,
@@ -28,6 +29,7 @@ export default function SelectSportScreen() {
   const [library, setLibrary] = useState<ExerciseLibrary>({ sports: [] });
   const [modalVisible, setModalVisible] = useState(false);
   const [newSportName, setNewSportName] = useState('');
+  const [requiresMuscleGroups, setRequiresMuscleGroups] = useState(true);
   const [editingSportId, setEditingSportId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [dialogVisible, setDialogVisible] = useState(false);
@@ -64,11 +66,12 @@ export default function SelectSportScreen() {
 
     try {
       if (editingSportId) {
-        await updateSportName(editingSportId, newSportName.trim());
+        await updateSportName(editingSportId, newSportName.trim(), requiresMuscleGroups);
       } else {
-        await addSport(newSportName.trim());
+        await addSport(newSportName.trim(), requiresMuscleGroups);
       }
       setNewSportName('');
+      setRequiresMuscleGroups(true);
       setEditingSportId(null);
       setModalVisible(false);
       // Reload library after adding sport
@@ -81,12 +84,14 @@ export default function SelectSportScreen() {
   const handleOpenAddSport = () => {
     setEditingSportId(null);
     setNewSportName('');
+    setRequiresMuscleGroups(true);
     setModalVisible(true);
   };
 
-  const handleEditSport = (sportId: string, sportName: string) => {
-    setEditingSportId(sportId);
-    setNewSportName(sportName);
+  const handleEditSport = (sport: Sport) => {
+    setEditingSportId(sport.id);
+    setNewSportName(sport.name);
+    setRequiresMuscleGroups(sport.requiresMuscleGroups);
     setModalVisible(true);
   };
 
@@ -118,7 +123,15 @@ export default function SelectSportScreen() {
     setDialogTitle(sportName);
     setDialogMessage('Choose an action');
     setDialogActions([
-      { label: 'Update Name', onPress: () => handleEditSport(sportId, sportName) },
+      {
+        label: 'Update Name',
+        onPress: () => {
+          const sport = library.sports.find((item) => item.id === sportId);
+          if (sport) {
+            handleEditSport(sport);
+          }
+        },
+      },
       {
         label: 'Delete Category',
         variant: 'danger',
@@ -145,15 +158,20 @@ export default function SelectSportScreen() {
     </View>
   );
 
-  const renderSportCard = (sportId: string, sportName: string) => (
+  const renderSportCard = (sport: Sport) => (
     <TouchableOpacity
-      key={sportId}
-      onPress={() => handleSelectSport(sportId)}
-      onLongPress={() => handleSportLongPress(sportId, sportName)}
+      key={sport.id}
+      onPress={() => handleSelectSport(sport.id)}
+      onLongPress={() => handleSportLongPress(sport.id, sport.name)}
       activeOpacity={0.7}
       style={styles.sportCard}
     >
-      <Text style={styles.sportName}>{sportName}</Text>
+      <View style={styles.sportTextContainer}>
+        <Text style={styles.sportName}>{sport.name}</Text>
+        <Text style={styles.sportFlowText}>
+          {sport.requiresMuscleGroups ? 'Category -> Muscle -> Exercise' : 'Category -> Exercise'}
+        </Text>
+      </View>
       <Ionicons name="chevron-forward" size={24} color="#3b82f6" />
     </TouchableOpacity>
   );
@@ -173,7 +191,7 @@ export default function SelectSportScreen() {
             {library.sports.length === 0
               ? renderEmptyState()
               : library.sports.map((sport) =>
-                  renderSportCard(sport.id, sport.name)
+                  renderSportCard(sport)
                 )}
           </ScrollView>
 
@@ -196,7 +214,7 @@ export default function SelectSportScreen() {
             <View style={styles.modalOverlay}>
               <View style={styles.modalContent}>
                 <Text style={styles.modalTitle}>
-                  {editingSportId ? 'Update Category Name' : 'Add New Category'}
+                  {editingSportId ? 'Update Workout Type' : 'Add Workout Type'}
                 </Text>
                 <TextInput
                   style={styles.textInput}
@@ -206,6 +224,20 @@ export default function SelectSportScreen() {
                   onChangeText={setNewSportName}
                   autoFocus
                 />
+                <View style={styles.switchRow}>
+                  <View>
+                    <Text style={styles.switchTitle}>Use Muscle Groups</Text>
+                    <Text style={styles.switchSubtitle}>
+                      Turn off for flows like Calisthenics
+                    </Text>
+                  </View>
+                  <Switch
+                    value={requiresMuscleGroups}
+                    onValueChange={setRequiresMuscleGroups}
+                    thumbColor={requiresMuscleGroups ? '#3b82f6' : '#9ca3af'}
+                    trackColor={{ false: '#4b5563', true: '#1d4ed8' }}
+                  />
+                </View>
                 <View style={styles.modalButtonContainer}>
                   <TouchableOpacity
                     style={styles.cancelButton}
@@ -213,6 +245,7 @@ export default function SelectSportScreen() {
                       setModalVisible(false);
                       setEditingSportId(null);
                       setNewSportName('');
+                      setRequiresMuscleGroups(true);
                     }}
                   >
                     <Text style={styles.cancelButtonText}>Cancel</Text>
@@ -222,7 +255,7 @@ export default function SelectSportScreen() {
                     onPress={handleSaveSport}
                   >
                     <Text style={styles.addButtonText}>
-                      {editingSportId ? 'Update Category' : 'Add Category'}
+                      {editingSportId ? 'Update Workout Type' : 'Add Workout Type'}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -266,8 +299,14 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#ffffff',
+  },
+  sportTextContainer: {
     flex: 1,
-    textAlign: 'center',
+  },
+  sportFlowText: {
+    color: '#9ca3af',
+    marginTop: 4,
+    fontSize: 13,
   },
   emptyStateContainer: {
     flex: 1,
@@ -326,6 +365,23 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     marginBottom: 24,
     fontSize: 16,
+  },
+  switchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+    paddingVertical: 4,
+  },
+  switchTitle: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  switchSubtitle: {
+    color: '#9ca3af',
+    marginTop: 4,
+    fontSize: 13,
   },
   modalButtonContainer: {
     flexDirection: 'row',

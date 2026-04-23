@@ -6,7 +6,7 @@
 export interface ExerciseSet {
   id: string;
   reps: number;
-  weight: number;
+  weight: number | null;
 }
 
 // Exercise with all its sets
@@ -40,6 +40,8 @@ export interface Exercise {
   muscle: string;          // "Chest"
   category: string;        // "Push"
   sport: string;           // "Gym"
+  photoUri?: string;
+  note?: string;
 }
 
 // Muscle group with its exercises
@@ -56,13 +58,16 @@ export interface Category {
   id: string;
   name: string;            // "Push"
   sport: string;           // "Gym"
+  parentCategoryId?: string | null;
   muscleGroups: MuscleGroup[];
+  exercises: Exercise[];   // Used when sport skips muscle groups
 }
 
 // Sport with its categories
 export interface Sport {
   id: string;
   name: string;            // "Gym"
+  requiresMuscleGroups: boolean;
   categories: Category[];
 }
 

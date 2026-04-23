@@ -1,7 +1,7 @@
 import { AppDialog, AppDialogAction } from '@/components/ui/app-dialog';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
     Dimensions,
     Modal,
@@ -12,12 +12,11 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import { ExerciseLibrary, Sport } from './types/workout';
+import { Category, ExerciseLibrary, Sport } from './types/workout';
 import { addCategory, deleteCategory, loadLibrary, updateCategoryName } from './utils/storage';
 
 const WIDTH = Dimensions.get('window').width;
 
-// Category icon mapping
 const getCategoryIcon = (categoryName: string): any => {
   const nameUpper = categoryName.toUpperCase();
   if (nameUpper === 'PUSH') return 'arrow-up-circle';
@@ -32,23 +31,32 @@ const getCategoryIcon = (categoryName: string): any => {
 
 export default function SelectCategoryScreen() {
   const router = useRouter();
-  const { sportId } = useLocalSearchParams<{ sportId: string }>();
+  const { sportId, parentCategoryId, parentCategoryName } = useLocalSearchParams<{
+    sportId: string;
+    parentCategoryId?: string;
+    parentCategoryName?: string;
+  }>();
   const [selectedSport, setSelectedSport] = useState<Sport | null>(null);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
+  const [parentForCreate, setParentForCreate] = useState<string | null>(null);
   const [dialogVisible, setDialogVisible] = useState(false);
   const [dialogTitle, setDialogTitle] = useState('');
   const [dialogMessage, setDialogMessage] = useState('');
   const [dialogActions, setDialogActions] = useState<AppDialogAction[]>([]);
-  
-  // Handle sportId from params (could be string or array)
-  const sportIdString = React.useMemo(() => {
-    return Array.isArray(sportId) ? sportId[0] : sportId;
-  }, [sportId]);
 
-  // Load sport data on focus
+  const sportIdString = useMemo(() => (Array.isArray(sportId) ? sportId[0] : sportId), [sportId]);
+  const currentParentCategoryId = useMemo(() => {
+    const rawValue = Array.isArray(parentCategoryId) ? parentCategoryId[0] : parentCategoryId;
+    return rawValue ?? null;
+  }, [parentCategoryId]);
+  const currentParentCategoryName = useMemo(
+    () => (Array.isArray(parentCategoryName) ? parentCategoryName[0] : parentCategoryName),
+    [parentCategoryName]
+  );
+
   useFocusEffect(
     useCallback(() => {
       loadSportData();
@@ -59,7 +67,7 @@ export default function SelectCategoryScreen() {
     try {
       setLoading(true);
       const library: ExerciseLibrary = await loadLibrary();
-      const sport = library.sports.find((s) => s.id === sportIdString);
+      const sport = library.sports.find((item) => item.id === sportIdString);
       setSelectedSport(sport || null);
     } catch (error) {
       console.error('Error loading sport:', error);
@@ -68,31 +76,64 @@ export default function SelectCategoryScreen() {
     }
   };
 
-  const handleSelectCategory = (categoryId: string) => {
+  const visibleCategories = useMemo(() => {
+    if (!selectedSport) return [];
+    return selectedSport.categories.filter(
+      (category) => (category.parentCategoryId ?? null) === currentParentCategoryId
+    );
+  }, [selectedSport, currentParentCategoryId]);
+
+  const hasChildCategories = useCallback(
+    (categoryId: string) => {
+      if (!selectedSport) return false;
+      return selectedSport.categories.some((category) => category.parentCategoryId === categoryId);
+    },
+    [selectedSport]
+  );
+
+  const handleSelectCategory = (category: Category) => {
+    if (selectedSport?.requiresMuscleGroups) {
+      router.push({
+        pathname: '/select-muscle',
+        params: { sportId: sportIdString, categoryId: category.id },
+      });
+      return;
+    }
+
+    if (hasChildCategories(category.id)) {
+      router.push({
+        pathname: '/select-category',
+        params: {
+          sportId: sportIdString,
+          parentCategoryId: category.id,
+          parentCategoryName: category.name,
+        },
+      });
+      return;
+    }
+
     router.push({
-      pathname: '/select-muscle',
-      params: { sportId: sportIdString, categoryId },
+      pathname: '/select-exercise',
+      params: { sportId: sportIdString, categoryId: category.id },
     });
   };
 
   const handleSaveCategory = async () => {
-    if (newCategoryName.trim().length === 0) {
+    if (!selectedSport || newCategoryName.trim().length === 0) {
       return;
     }
 
     try {
-      if (selectedSport) {
-        if (editingCategoryId) {
-          await updateCategoryName(selectedSport.id, editingCategoryId, newCategoryName.trim());
-        } else {
-          await addCategory(selectedSport.id, newCategoryName.trim());
-        }
-        setNewCategoryName('');
-        setEditingCategoryId(null);
-        setModalVisible(false);
-        // Reload sport data
-        await loadSportData();
+      if (editingCategoryId) {
+        await updateCategoryName(selectedSport.id, editingCategoryId, newCategoryName.trim());
+      } else {
+        await addCategory(selectedSport.id, newCategoryName.trim(), parentForCreate);
       }
+      setNewCategoryName('');
+      setEditingCategoryId(null);
+      setParentForCreate(null);
+      setModalVisible(false);
+      await loadSportData();
     } catch (error) {
       console.error('Error saving category:', error);
     }
@@ -100,12 +141,21 @@ export default function SelectCategoryScreen() {
 
   const handleOpenAddCategory = () => {
     setEditingCategoryId(null);
+    setParentForCreate(currentParentCategoryId);
+    setNewCategoryName('');
+    setModalVisible(true);
+  };
+
+  const handleOpenAddSubCategory = (categoryId: string) => {
+    setEditingCategoryId(null);
+    setParentForCreate(categoryId);
     setNewCategoryName('');
     setModalVisible(true);
   };
 
   const handleEditCategory = (categoryId: string, categoryName: string) => {
     setEditingCategoryId(categoryId);
+    setParentForCreate(null);
     setNewCategoryName(categoryName);
     setModalVisible(true);
   };
@@ -114,7 +164,7 @@ export default function SelectCategoryScreen() {
     if (!selectedSport) return;
 
     setDialogTitle(`Delete ${categoryName}?`);
-    setDialogMessage('This will delete all sub categories and exercises.');
+    setDialogMessage('This will delete all sub categories and exercises under it.');
     setDialogActions([
       { label: 'Cancel', variant: 'cancel' },
       {
@@ -136,18 +186,22 @@ export default function SelectCategoryScreen() {
     setDialogVisible(true);
   };
 
-  const handleCategoryLongPress = (categoryId: string, categoryName: string) => {
-    setDialogTitle(categoryName);
+  const handleCategoryLongPress = (category: Category) => {
+    setDialogTitle(category.name);
     setDialogMessage('Choose an action');
     setDialogActions([
       {
+        label: 'Add Sub Category',
+        onPress: () => handleOpenAddSubCategory(category.id),
+      },
+      {
         label: 'Update Name',
-        onPress: () => handleEditCategory(categoryId, categoryName),
+        onPress: () => handleEditCategory(category.id, category.name),
       },
       {
         label: 'Delete Category',
         variant: 'danger',
-        onPress: () => handleDeleteCategory(categoryId, categoryName),
+        onPress: () => handleDeleteCategory(category.id, category.name),
       },
       { label: 'Cancel', variant: 'cancel' },
     ]);
@@ -158,30 +212,36 @@ export default function SelectCategoryScreen() {
     <View style={styles.emptyStateContainer}>
       <Ionicons name="layers" size={64} color="#6b7280" />
       <Text style={styles.emptyStateText}>
-        No categories yet. Add your first one!
+        {currentParentCategoryId
+          ? 'No sub categories here yet. Add one to continue.'
+          : 'No categories yet. Add your first one!'}
       </Text>
     </View>
   );
 
-  const renderCategoryCard = (categoryId: string, categoryName: string) => (
-    <TouchableOpacity
-      key={categoryId}
-      onPress={() => handleSelectCategory(categoryId)}
-        onLongPress={() => handleCategoryLongPress(categoryId, categoryName)}
-      activeOpacity={0.7}
-      style={styles.categoryCard}
-    >
-      <View style={styles.categoryIconContainer}>
-        <Ionicons 
-          name={getCategoryIcon(categoryName)} 
-          size={28} 
-          color="#3b82f6" 
-        />
-      </View>
-      <Text style={styles.categoryName}>{categoryName}</Text>
-      <Ionicons name="chevron-forward" size={24} color="#3b82f6" />
-    </TouchableOpacity>
-  );
+  const renderCategoryCard = (category: Category) => {
+    const childCount =
+      selectedSport?.categories.filter((item) => item.parentCategoryId === category.id).length || 0;
+
+    return (
+      <TouchableOpacity
+        key={category.id}
+        onPress={() => handleSelectCategory(category)}
+        onLongPress={() => handleCategoryLongPress(category)}
+        activeOpacity={0.7}
+        style={styles.categoryCard}
+      >
+        <View style={styles.categoryIconContainer}>
+          <Ionicons name={getCategoryIcon(category.name)} size={28} color="#3b82f6" />
+        </View>
+        <View style={styles.categoryTextContainer}>
+          <Text style={styles.categoryName}>{category.name}</Text>
+          {childCount > 0 && <Text style={styles.subCategoryHint}>{childCount} sub categories</Text>}
+        </View>
+        <Ionicons name="chevron-forward" size={24} color="#3b82f6" />
+      </TouchableOpacity>
+    );
+  };
 
   if (loading) {
     return (
@@ -195,28 +255,21 @@ export default function SelectCategoryScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{selectedSport?.name} - Categories</Text>
-      <ScrollView
-        contentContainerStyle={styles.categoriesList}
-        scrollEnabled={selectedSport?.categories.length ? selectedSport.categories.length > 3 : false}
-      >
-        {!selectedSport || selectedSport.categories.length === 0
+      <Text style={styles.title}>
+        {currentParentCategoryName
+          ? `${currentParentCategoryName} - Sub Categories`
+          : `${selectedSport?.name} - Categories`}
+      </Text>
+      <ScrollView contentContainerStyle={styles.categoriesList} scrollEnabled={visibleCategories.length > 3}>
+        {!selectedSport || visibleCategories.length === 0
           ? renderEmptyState()
-          : selectedSport.categories.map((category) =>
-              renderCategoryCard(category.id, category.name)
-            )}
+          : visibleCategories.map((category) => renderCategoryCard(category))}
       </ScrollView>
 
-      {/* Floating Action Button - Add Category */}
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={handleOpenAddCategory}
-        activeOpacity={0.8}
-      >
+      <TouchableOpacity style={styles.fab} onPress={handleOpenAddCategory} activeOpacity={0.8}>
         <Ionicons name="add" size={32} color="#ffffff" />
       </TouchableOpacity>
 
-      {/* Add Category Modal */}
       <Modal
         visible={modalVisible}
         transparent={true}
@@ -230,7 +283,7 @@ export default function SelectCategoryScreen() {
             </Text>
             <TextInput
               style={styles.textInput}
-              placeholder="Enter category name (e.g., Push, Pull, Legs)"
+              placeholder="Enter category name"
               placeholderTextColor="#9ca3af"
               value={newCategoryName}
               onChangeText={setNewCategoryName}
@@ -242,15 +295,13 @@ export default function SelectCategoryScreen() {
                 onPress={() => {
                   setModalVisible(false);
                   setEditingCategoryId(null);
+                  setParentForCreate(null);
                   setNewCategoryName('');
                 }}
               >
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.addButton}
-                onPress={handleSaveCategory}
-              >
+              <TouchableOpacity style={styles.addButton} onPress={handleSaveCategory}>
                 <Text style={styles.addButtonText}>
                   {editingCategoryId ? 'Update Category' : 'Add Category'}
                 </Text>
@@ -307,11 +358,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  categoryTextContainer: {
+    flex: 1,
+  },
   categoryName: {
     fontSize: 18,
     fontWeight: '600',
     color: '#ffffff',
-    flex: 1,
+  },
+  subCategoryHint: {
+    color: '#9ca3af',
+    marginTop: 4,
+    fontSize: 12,
   },
   emptyStateContainer: {
     flex: 1,

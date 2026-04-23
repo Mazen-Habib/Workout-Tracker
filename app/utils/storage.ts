@@ -74,12 +74,38 @@ export const clearAllWorkouts = async (): Promise<void> => {
 
 const LIBRARY_KEY = '@exercise-library';
 
+const normalizeLibrary = (library: ExerciseLibrary): ExerciseLibrary => {
+  return {
+    sports: (library.sports || []).map((sport) => ({
+      ...sport,
+      requiresMuscleGroups: sport.requiresMuscleGroups ?? true,
+      categories: (sport.categories || []).map((category) => ({
+        ...category,
+        parentCategoryId: category.parentCategoryId ?? null,
+        muscleGroups: (category.muscleGroups || []).map((muscle) => ({
+          ...muscle,
+          exercises: (muscle.exercises || []).map((exercise) => ({
+            ...exercise,
+            photoUri: exercise.photoUri || undefined,
+            note: exercise.note || undefined,
+          })),
+        })),
+        exercises: (category.exercises || []).map((exercise) => ({
+          ...exercise,
+          photoUri: exercise.photoUri || undefined,
+          note: exercise.note || undefined,
+        })),
+      })),
+    })),
+  };
+};
+
 // Load exercise library
 export const loadLibrary = async (): Promise<ExerciseLibrary> => {
   try {
     const jsonValue = await AsyncStorage.getItem(LIBRARY_KEY);
     if (jsonValue != null) {
-      return JSON.parse(jsonValue);
+      return normalizeLibrary(JSON.parse(jsonValue));
     }
     // Return default structure if nothing saved
     return { sports: [] };
@@ -101,11 +127,15 @@ export const saveLibrary = async (library: ExerciseLibrary): Promise<void> => {
 };
 
 // Add a new sport
-export const addSport = async (sportName: string): Promise<void> => {
+export const addSport = async (
+  sportName: string,
+  requiresMuscleGroups: boolean = true
+): Promise<void> => {
   const library = await loadLibrary();
   const newSport: Sport = {
     id: generateId(),
     name: sportName,
+    requiresMuscleGroups,
     categories: [],
   };
   library.sports.push(newSport);
@@ -113,15 +143,26 @@ export const addSport = async (sportName: string): Promise<void> => {
 };
 
 // Rename a sport
-export const updateSportName = async (sportId: string, newName: string): Promise<void> => {
+export const updateSportName = async (
+  sportId: string,
+  newName: string,
+  requiresMuscleGroups?: boolean
+): Promise<void> => {
   const library = await loadLibrary();
   const sport = library.sports.find(s => s.id === sportId);
 
   if (sport) {
     sport.name = newName;
+    if (typeof requiresMuscleGroups === 'boolean') {
+      sport.requiresMuscleGroups = requiresMuscleGroups;
+    }
     sport.categories = sport.categories.map((category) => ({
       ...category,
       sport: newName,
+      exercises: category.exercises.map((exercise) => ({
+        ...exercise,
+        sport: newName,
+      })),
       muscleGroups: category.muscleGroups.map((muscle) => ({
         ...muscle,
         sport: newName,
@@ -143,7 +184,11 @@ export const deleteSport = async (sportId: string): Promise<void> => {
 };
 
 // Add a new category to a sport
-export const addCategory = async (sportId: string, categoryName: string): Promise<void> => {
+export const addCategory = async (
+  sportId: string,
+  categoryName: string,
+  parentCategoryId: string | null = null
+): Promise<void> => {
   const library = await loadLibrary();
   const sport = library.sports.find(s => s.id === sportId);
   if (sport) {
@@ -151,7 +196,9 @@ export const addCategory = async (sportId: string, categoryName: string): Promis
       id: generateId(),
       name: categoryName,
       sport: sport.name,
+      parentCategoryId,
       muscleGroups: [],
+      exercises: [],
     };
     sport.categories.push(newCategory);
     await saveLibrary(library);
@@ -170,6 +217,10 @@ export const updateCategoryName = async (
 
   if (category) {
     category.name = newName;
+    category.exercises = category.exercises.map((exercise) => ({
+      ...exercise,
+      category: newName,
+    }));
     category.muscleGroups = category.muscleGroups.map((muscle) => ({
       ...muscle,
       category: newName,
@@ -188,7 +239,20 @@ export const deleteCategory = async (sportId: string, categoryId: string): Promi
   const sport = library.sports.find(s => s.id === sportId);
 
   if (sport) {
-    sport.categories = sport.categories.filter(c => c.id !== categoryId);
+    const toDelete = new Set<string>([categoryId]);
+    let foundChild = true;
+
+    while (foundChild) {
+      foundChild = false;
+      for (const category of sport.categories) {
+        if (category.parentCategoryId && toDelete.has(category.parentCategoryId) && !toDelete.has(category.id)) {
+          toDelete.add(category.id);
+          foundChild = true;
+        }
+      }
+    }
+
+    sport.categories = sport.categories.filter(c => !toDelete.has(c.id));
     await saveLibrary(library);
   }
 };
@@ -257,13 +321,13 @@ export const deleteMuscleGroup = async (
 export const addExercise = async (
   sportId: string,
   categoryId: string,
-  muscleId: string,
+  muscleId: string | null,
   exerciseName: string
 ): Promise<void> => {
   const library = await loadLibrary();
   const sport = library.sports.find(s => s.id === sportId);
   const category = sport?.categories.find(c => c.id === categoryId);
-  const muscle = category?.muscleGroups.find(m => m.id === muscleId);
+  const muscle = muscleId ? category?.muscleGroups.find(m => m.id === muscleId) : undefined;
   
   if (muscle && category && sport) {
     const newExercise: Exercise = {
@@ -275,6 +339,70 @@ export const addExercise = async (
     };
     muscle.exercises.push(newExercise);
     await saveLibrary(library);
+    return;
+  }
+
+  if (category && sport) {
+    const newExercise: Exercise = {
+      id: generateId(),
+      name: exerciseName,
+      muscle: category.name,
+      category: category.name,
+      sport: sport.name,
+    };
+    category.exercises.push(newExercise);
+    await saveLibrary(library);
+  }
+};
+
+const findExerciseInLibrary = (
+  library: ExerciseLibrary,
+  sportId: string,
+  categoryId: string,
+  muscleId: string | null,
+  exerciseId: string
+): Exercise | undefined => {
+  const sport = library.sports.find((item) => item.id === sportId);
+  const category = sport?.categories.find((item) => item.id === categoryId);
+  const muscle = muscleId ? category?.muscleGroups.find((item) => item.id === muscleId) : undefined;
+
+  if (muscle) {
+    return muscle.exercises.find((item) => item.id === exerciseId);
+  }
+
+  return category?.exercises.find((item) => item.id === exerciseId);
+};
+
+export const updateExercisePhoto = async (
+  sportId: string,
+  categoryId: string,
+  muscleId: string | null,
+  exerciseId: string,
+  photoUri: string | null
+): Promise<void> => {
+  const library = await loadLibrary();
+  const exercise = findExerciseInLibrary(library, sportId, categoryId, muscleId, exerciseId);
+
+  if (exercise) {
+    exercise.photoUri = photoUri || undefined;
+    await saveLibrary(library);
+  }
+};
+
+export const updateExerciseNote = async (
+  sportId: string,
+  categoryId: string,
+  muscleId: string | null,
+  exerciseId: string,
+  note: string | null
+): Promise<void> => {
+  const library = await loadLibrary();
+  const exercise = findExerciseInLibrary(library, sportId, categoryId, muscleId, exerciseId);
+
+  if (exercise) {
+    const trimmedNote = (note || '').trim();
+    exercise.note = trimmedNote.length > 0 ? trimmedNote : undefined;
+    await saveLibrary(library);
   }
 };
 
@@ -282,18 +410,25 @@ export const addExercise = async (
 export const updateExerciseName = async (
   sportId: string,
   categoryId: string,
-  muscleId: string,
+  muscleId: string | null,
   exerciseId: string,
   newName: string
 ): Promise<void> => {
   const library = await loadLibrary();
   const sport = library.sports.find(s => s.id === sportId);
   const category = sport?.categories.find(c => c.id === categoryId);
-  const muscle = category?.muscleGroups.find(m => m.id === muscleId);
+  const muscle = muscleId ? category?.muscleGroups.find(m => m.id === muscleId) : undefined;
   const exercise = muscle?.exercises.find(e => e.id === exerciseId);
 
   if (exercise) {
     exercise.name = newName;
+    await saveLibrary(library);
+    return;
+  }
+
+  const categoryExercise = category?.exercises.find(e => e.id === exerciseId);
+  if (categoryExercise) {
+    categoryExercise.name = newName;
     await saveLibrary(library);
   }
 };
@@ -302,16 +437,22 @@ export const updateExerciseName = async (
 export const deleteExercise = async (
   sportId: string,
   categoryId: string,
-  muscleId: string,
+  muscleId: string | null,
   exerciseId: string
 ): Promise<void> => {
   const library = await loadLibrary();
   const sport = library.sports.find(s => s.id === sportId);
   const category = sport?.categories.find(c => c.id === categoryId);
-  const muscle = category?.muscleGroups.find(m => m.id === muscleId);
+  const muscle = muscleId ? category?.muscleGroups.find(m => m.id === muscleId) : undefined;
   
   if (muscle) {
     muscle.exercises = muscle.exercises.filter(e => e.id !== exerciseId);
+    await saveLibrary(library);
+    return;
+  }
+
+  if (category) {
+    category.exercises = category.exercises.filter(e => e.id !== exerciseId);
     await saveLibrary(library);
   }
 };
@@ -349,11 +490,14 @@ export const initializeDefaultLibrary = async (): Promise<void> => {
   const gymSport: Sport = {
     id: generateId(),
     name: 'Gym',
+    requiresMuscleGroups: true,
     categories: [
       {
         id: generateId(),
         name: 'Push',
         sport: 'Gym',
+        parentCategoryId: null,
+        exercises: [],
         muscleGroups: [
           {
             id: generateId(),
@@ -382,6 +526,7 @@ export const initializeDefaultLibrary = async (): Promise<void> => {
 // ==========================================
 
 const NOTES_KEY = '@quick-notes';
+const HOME_BACKGROUND_KEY = '@home-background-image';
 
 interface QuickNote {
   id: string;
@@ -407,6 +552,38 @@ export const saveNotes = async (notes: QuickNote[]): Promise<void> => {
     await AsyncStorage.setItem(NOTES_KEY, jsonValue);
   } catch (error) {
     console.error('Error saving notes:', error);
+    throw error;
+  }
+};
+
+// ==========================================
+// HOME BACKGROUND IMAGE STORAGE
+// ==========================================
+
+export const loadHomeBackgroundImage = async (): Promise<string | null> => {
+  try {
+    const uri = await AsyncStorage.getItem(HOME_BACKGROUND_KEY);
+    return uri || null;
+  } catch (error) {
+    console.error('Error loading home background image:', error);
+    return null;
+  }
+};
+
+export const saveHomeBackgroundImage = async (uri: string): Promise<void> => {
+  try {
+    await AsyncStorage.setItem(HOME_BACKGROUND_KEY, uri);
+  } catch (error) {
+    console.error('Error saving home background image:', error);
+    throw error;
+  }
+};
+
+export const removeHomeBackgroundImage = async (): Promise<void> => {
+  try {
+    await AsyncStorage.removeItem(HOME_BACKGROUND_KEY);
+  } catch (error) {
+    console.error('Error removing home background image:', error);
     throw error;
   }
 };

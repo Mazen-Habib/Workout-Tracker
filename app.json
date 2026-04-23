@@ -1,8 +1,8 @@
 {
   "expo": {
-   "name": "FitTrack Pro",
-   "slug": "workout-tracker",
-   "description": "Track your workouts, visualize progress, and crush your fitness goals.",
+    "name": "FitTrack Pro",
+    "slug": "workout-tracker",
+    "description": "Track your workouts, visualize progress, and crush your fitness goals.",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -18,7 +18,8 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.mazenhabib.workouttracker"
     },
     "web": {
       "output": "static",
@@ -42,6 +43,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "536e6a4a-1344-4e5c-9c7e-2b06574f8af6"
+      }
     }
   }
 }

@@ -1,7 +1,7 @@
 import { AppDialog, AppDialogAction } from '@/components/ui/app-dialog';
 import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import {
     ScrollView,
@@ -14,6 +14,7 @@ import { Workout } from '../types/workout';
 import { clearAllWorkouts, deleteWorkout, loadWorkouts } from '../utils/storage';
 
 export default function HistoryScreen() {
+  const { workoutId } = useLocalSearchParams<{ workoutId?: string }>();
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogVisible, setDialogVisible] = useState(false);
@@ -87,6 +88,14 @@ export default function HistoryScreen() {
     setDialogVisible(true);
   };
 
+  const selectedWorkoutId = Array.isArray(workoutId) ? workoutId[0] : workoutId;
+  const displayWorkouts = selectedWorkoutId
+    ? [
+        ...workouts.filter((item) => item.id === selectedWorkoutId),
+        ...workouts.filter((item) => item.id !== selectedWorkoutId),
+      ]
+    : workouts;
+
   if (loading) {
     return (
       <View style={styles.centerContainer}>
@@ -120,8 +129,14 @@ export default function HistoryScreen() {
         </View>
       </View>
 
-      {workouts.map((workout) => (
-        <View key={workout.id} style={styles.workoutCard}>
+      {displayWorkouts.map((workout) => (
+        <View
+          key={workout.id}
+          style={[
+            styles.workoutCard,
+            selectedWorkoutId === workout.id ? styles.selectedWorkoutCard : null,
+          ]}
+        >
           {/* Header */}
           <View style={styles.cardHeader}>
             <View>
@@ -165,7 +180,8 @@ export default function HistoryScreen() {
                       </Text>
                       {exercise.sets.map((set, setIndex) => (
                         <Text key={set.id} style={styles.setDetail}>
-                          Set {setIndex + 1}: {set.reps} reps @ {set.weight} kg
+                          Set {setIndex + 1}: {set.reps} reps
+                          {typeof set.weight === 'number' ? ` @ ${set.weight} kg` : ''}
                         </Text>
                       ))}
                     </>
@@ -264,6 +280,10 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     padding: 16,
     borderRadius: 12,
+  },
+  selectedWorkoutCard: {
+    borderWidth: 1,
+    borderColor: '#3b82f6',
   },
   cardHeader: {
     flexDirection: 'row',
