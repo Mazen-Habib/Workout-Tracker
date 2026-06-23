@@ -1,91 +1,81 @@
-import { AppDialog, AppDialogAction } from '@/components/ui/app-dialog';
 import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
-import { useFocusEffect, useLocalSearchParams } from 'expo-router';
-import React, { useState } from 'react';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useCallback, useState } from 'react';
+import { View } from 'react-native';
 import {
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
-} from 'react-native';
+  AppDialog,
+  Card,
+  EmptyState,
+  FadeIn,
+  PressableScale,
+  Screen,
+  SectionHeader,
+  Text,
+  stagger,
+} from '@/components/ui';
+import { useAppDialog } from '@/hooks/use-app-dialog';
+import { makeStyles, useTheme } from '@/theme';
 import { Workout } from '../types/workout';
 import { clearAllWorkouts, deleteWorkout, loadWorkouts } from '../utils/storage';
 
 export default function HistoryScreen() {
   const { workoutId } = useLocalSearchParams<{ workoutId?: string }>();
+  const router = useRouter();
+  const theme = useTheme();
+  const styles = useStyles();
+  const dialog = useAppDialog();
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [loading, setLoading] = useState(true);
-  const [dialogVisible, setDialogVisible] = useState(false);
-  const [dialogTitle, setDialogTitle] = useState('');
-  const [dialogMessage, setDialogMessage] = useState('');
-  const [dialogActions, setDialogActions] = useState<AppDialogAction[]>([]);
 
-  // Load workouts when screen comes into focus
-  useFocusEffect(
-    React.useCallback(() => {
-      loadWorkoutsData();
-    }, [])
-  );
-
-  const loadWorkoutsData = async () => {
+  const loadWorkoutsData = useCallback(async () => {
     try {
-      const data = await loadWorkouts();
-      setWorkouts(data);
+      setWorkouts(await loadWorkouts());
     } catch (error) {
       console.error('Error loading workouts:', error);
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadWorkoutsData();
+    }, [loadWorkoutsData])
+  );
+
+  const handleDeleteWorkout = (id: string, date: string) => {
+    dialog.confirm({
+      title: 'Delete Workout',
+      message: `Delete workout from ${format(new Date(date), 'MMM d, yyyy')}?`,
+      confirmLabel: 'Delete',
+      destructive: true,
+      onConfirm: async () => {
+        try {
+          await deleteWorkout(id);
+          await loadWorkoutsData();
+        } catch {
+          dialog.alert('Error', 'Failed to delete workout');
+        }
+      },
+    });
   };
 
-  const handleDeleteWorkout = (workoutId: string, workoutDate: string) => {
-    setDialogTitle('Delete Workout');
-    setDialogMessage(`Delete workout from ${format(new Date(workoutDate), 'MMM d, yyyy')}?`);
-    setDialogActions([
-      { label: 'Cancel', variant: 'cancel' },
-      {
-        label: 'Delete',
-        variant: 'danger',
-        onPress: async () => {
-          try {
-            await deleteWorkout(workoutId);
-            await loadWorkoutsData();
-          } catch (error) {
-            setDialogTitle('Error');
-            setDialogMessage('Failed to delete workout');
-            setDialogActions([{ label: 'OK', variant: 'cancel' }]);
-            setDialogVisible(true);
-          }
-        },
+  const handleClearAll = () => {
+    dialog.confirm({
+      title: 'Clear All History',
+      message: 'This will permanently delete all workout history. Are you sure?',
+      confirmLabel: 'Clear All',
+      destructive: true,
+      onConfirm: async () => {
+        try {
+          await clearAllWorkouts();
+          await loadWorkoutsData();
+        } catch {
+          dialog.alert('Error', 'Failed to clear workout history');
+        }
       },
-    ]);
-    setDialogVisible(true);
-  };
-
-  const handleClearAllWorkouts = () => {
-    setDialogTitle('Clear All Workout History');
-    setDialogMessage('This will permanently delete all workout history. Are you sure?');
-    setDialogActions([
-      { label: 'Cancel', variant: 'cancel' },
-      {
-        label: 'Clear All',
-        variant: 'danger',
-        onPress: async () => {
-          try {
-            await clearAllWorkouts();
-            await loadWorkoutsData();
-          } catch (error) {
-            setDialogTitle('Error');
-            setDialogMessage('Failed to clear workout history');
-            setDialogActions([{ label: 'OK', variant: 'cancel' }]);
-            setDialogVisible(true);
-          }
-        },
-      },
-    ]);
-    setDialogVisible(true);
+    });
   };
 
   const selectedWorkoutId = Array.isArray(workoutId) ? workoutId[0] : workoutId;
@@ -96,274 +86,181 @@ export default function HistoryScreen() {
       ]
     : workouts;
 
-  if (loading) {
+  if (!loading && workouts.length === 0) {
     return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.emptyText}>Loading...</Text>
-      </View>
-    );
-  }
-
-  if (workouts.length === 0) {
-    return (
-      <View style={styles.centerContainer}>
-        <Ionicons name="barbell-outline" size={64} color="#6b7280" />
-        <Text style={styles.emptyTitle}>No Workouts Yet</Text>
-        <Text style={styles.emptyText}>
-          Start logging your workouts to see them here!
-        </Text>
-      </View>
+      <Screen>
+        <EmptyState
+          icon="barbell-outline"
+          title="No Workouts Yet"
+          description="Start logging your workouts to see them here."
+        />
+      </Screen>
     );
   }
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Workout History</Text>
-        <View style={styles.headerRow}>
-          <Text style={styles.subtitle}>{workouts.length} total workouts</Text>
-          <TouchableOpacity onPress={handleClearAllWorkouts} style={styles.clearAllButton}>
-            <Ionicons name="trash" size={16} color="#ef4444" />
-            <Text style={styles.clearAllText}>Clear All</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+    <Screen scroll edgeBottom contentContainerStyle={styles.content}>
+      <FadeIn>
+        <SectionHeader
+          title="History"
+          action={workouts.length > 0 ? { label: 'Clear all', onPress: handleClearAll } : undefined}
+          style={styles.header}
+        />
+        <Text variant="caption" color="textSecondary" style={styles.subtitle}>
+          {workouts.length} total workout{workouts.length === 1 ? '' : 's'}
+        </Text>
+      </FadeIn>
 
-      {displayWorkouts.map((workout) => (
-        <View
-          key={workout.id}
-          style={[
-            styles.workoutCard,
-            selectedWorkoutId === workout.id ? styles.selectedWorkoutCard : null,
-          ]}
-        >
-          {/* Header */}
-          <View style={styles.cardHeader}>
-            <View>
-              <Text style={styles.workoutDate}>
-                {format(new Date(workout.date), 'EEEE, MMM d, yyyy')}
-              </Text>
-              <Text style={styles.workoutTime}>
-                {format(new Date(workout.date), 'h:mm a')}
-              </Text>
-            </View>
-            <TouchableOpacity 
-              onPress={() => handleDeleteWorkout(workout.id, workout.date)}
-            >
-              <Ionicons name="trash-outline" size={24} color="#ef4444" />
-            </TouchableOpacity>
-          </View>
-
-          {/* Stats */}
-          <View style={styles.statsRow}>
-            <View style={styles.statItem}>
-              <Ionicons name="time-outline" size={18} color="#3b82f6" />
-              <Text style={styles.statText}>{workout.duration} min</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Ionicons name="fitness-outline" size={18} color="#3b82f6" />
-              <Text style={styles.statText}>{workout.exercises.length} exercises</Text>
-            </View>
-          </View>
-
-          {/* Exercise List */}
-          <View style={styles.exerciseList}>
-            {workout.exercises.map((exercise, index) => (
-              <View key={exercise.id} style={styles.exerciseItem}>
-                <Text style={styles.exerciseNumber}>{index + 1}.</Text>
-                <View style={styles.exerciseDetails}>
-                  <Text style={styles.exerciseName}>{exercise.exerciseName}</Text>
-                  {exercise.sets && Array.isArray(exercise.sets) ? (
-                    <>
-                      <Text style={styles.exerciseStats}>
-                        {exercise.sets.length} sets
-                      </Text>
-                      {exercise.sets.map((set, setIndex) => (
-                        <Text key={set.id} style={styles.setDetail}>
-                          Set {setIndex + 1}: {set.reps} reps
-                          {typeof set.weight === 'number' ? ` @ ${set.weight} kg` : ''}
-                        </Text>
-                      ))}
-                    </>
-                  ) : (
-                    <Text style={styles.exerciseStats}>No sets recorded</Text>
-                  )}
+      {displayWorkouts.map((workout, index) => {
+        const selected = selectedWorkoutId === workout.id;
+        return (
+          <FadeIn key={workout.id} delay={stagger(Math.min(index, 6))}>
+            <Card style={[styles.card, selected && styles.cardSelected]}>
+              <View style={styles.cardHeader}>
+                <View style={styles.flex}>
+                  <Text variant="subheading">{format(new Date(workout.date), 'EEE, MMM d, yyyy')}</Text>
+                  <Text variant="caption" color="textMuted">{format(new Date(workout.date), 'h:mm a')}</Text>
+                </View>
+                <View style={styles.cardActions}>
+                  <PressableScale
+                    onPress={() => router.push({ pathname: '/edit-workout', params: { workoutId: workout.id } })}
+                    hitSlop={8}
+                  >
+                    <Ionicons name="create-outline" size={20} color={theme.colors.accent} />
+                  </PressableScale>
+                  <PressableScale onPress={() => handleDeleteWorkout(workout.id, workout.date)} hitSlop={8}>
+                    <Ionicons name="trash-outline" size={20} color={theme.colors.danger} />
+                  </PressableScale>
                 </View>
               </View>
-            ))}
-          </View>
 
-          {/* Notes if exist */}
-          {workout.notes && (
-            <View style={styles.notesSection}>
-              <Text style={styles.notesLabel}>Notes:</Text>
-              <Text style={styles.notesText}>{workout.notes}</Text>
-            </View>
-          )}
-        </View>
-      ))}
+              <View style={styles.metaRow}>
+                <View style={styles.metaItem}>
+                  <Ionicons name="fitness-outline" size={15} color={theme.colors.accent} />
+                  <Text variant="caption" color="textSecondary">
+                    {workout.exercises.length} exercise{workout.exercises.length === 1 ? '' : 's'}
+                  </Text>
+                </View>
+                {typeof workout.duration === 'number' ? (
+                  <View style={styles.metaItem}>
+                    <Ionicons name="time-outline" size={15} color={theme.colors.accent} />
+                    <Text variant="caption" color="textSecondary">{workout.duration} min</Text>
+                  </View>
+                ) : null}
+                {workout.category ? (
+                  <View style={styles.metaItem}>
+                    <Ionicons name="albums-outline" size={15} color={theme.colors.accent} />
+                    <Text variant="caption" color="textSecondary">{workout.category}</Text>
+                  </View>
+                ) : null}
+              </View>
 
-      <AppDialog
-        visible={dialogVisible}
-        title={dialogTitle}
-        message={dialogMessage}
-        actions={dialogActions}
-        onClose={() => setDialogVisible(false)}
-      />
-    </ScrollView>
+              <View style={styles.divider} />
+
+              <View style={styles.exerciseList}>
+                {workout.exercises.map((exercise, exIndex) => (
+                  <View key={exercise.id} style={styles.exerciseItem}>
+                    <Text variant="label" color="textMuted" style={styles.exerciseNumber}>{exIndex + 1}</Text>
+                    <View style={styles.flex}>
+                      <Text variant="bodyStrong">{exercise.exerciseName}</Text>
+                      {Array.isArray(exercise.sets) && exercise.sets.length > 0 ? (
+                        exercise.sets.map((set, setIndex) => (
+                          <Text key={set.id} variant="caption" color="textSecondary" style={styles.setDetail}>
+                            Set {setIndex + 1}: {set.reps} reps
+                            {typeof set.weight === 'number' ? ` · ${set.weight} kg` : ''}
+                          </Text>
+                        ))
+                      ) : (
+                        <Text variant="caption" color="textMuted">No sets recorded</Text>
+                      )}
+                    </View>
+                  </View>
+                ))}
+              </View>
+
+              {workout.notes ? (
+                <View style={styles.notesSection}>
+                  <Text variant="overline" color="textMuted">Notes</Text>
+                  <Text variant="caption" color="textSecondary" style={styles.notesText}>{workout.notes}</Text>
+                </View>
+              ) : null}
+            </Card>
+          </FadeIn>
+        );
+      })}
+
+      <AppDialog {...dialog.props} />
+    </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
+const useStyles = makeStyles((t) => ({
+  content: {
+    paddingHorizontal: t.spacing.xl,
+    paddingTop: t.spacing['2xl'],
+    paddingBottom: t.spacing.xl,
   },
-  centerContainer: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-  },
+  flex: { flex: 1 },
   header: {
-    padding: 20,
-    paddingTop: 10,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#0f172a',
+    marginBottom: t.spacing.xs,
   },
   subtitle: {
-    fontSize: 14,
-    color: '#64748b',
-    marginTop: 4,
+    marginBottom: t.spacing.lg,
   },
-  headerRow: {
-    marginTop: 6,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  card: {
+    marginBottom: t.spacing.lg,
   },
-  clearAllButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderWidth: 1,
-    borderColor: '#ef4444',
-    borderRadius: 8,
-    backgroundColor: '#2a1515',
-  },
-  clearAllText: {
-    color: '#ef4444',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#0f172a',
-    marginTop: 16,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#64748b',
-    textAlign: 'center',
-    marginTop: 8,
-  },
-  workoutCard: {
-    backgroundColor: '#ffffff',
-    marginHorizontal: 20,
-    marginBottom: 16,
-    padding: 16,
-    borderRadius: 12,
-  },
-  selectedWorkoutCard: {
-    borderWidth: 1,
-    borderColor: '#3b82f6',
+  cardSelected: {
+    borderColor: t.colors.accent,
+    borderWidth: 1.5,
   },
   cardHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 12,
+    gap: t.spacing.md,
   },
-  workoutDate: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#0f172a',
-  },
-  workoutTime: {
-    fontSize: 14,
-    color: '#64748b',
-    marginTop: 2,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    gap: 16,
-    marginBottom: 12,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
-  },
-  statItem: {
+  cardActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: t.spacing.lg,
   },
-  statText: {
-    fontSize: 14,
-    color: '#64748b',
+  metaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: t.spacing.lg,
+    marginTop: t.spacing.md,
+  },
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: t.spacing.xs,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: t.colors.border,
+    marginVertical: t.spacing.md,
   },
   exerciseList: {
-    gap: 8,
+    gap: t.spacing.md,
   },
   exerciseItem: {
     flexDirection: 'row',
-    gap: 8,
+    gap: t.spacing.sm,
   },
   exerciseNumber: {
-    fontSize: 14,
-    color: '#64748b',
-    fontWeight: '600',
-  },
-  exerciseDetails: {
-    flex: 1,
-  },
-  exerciseName: {
-    fontSize: 16,
-    color: '#0f172a',
-    fontWeight: '500',
-  },
-  exerciseStats: {
-    fontSize: 14,
-    color: '#64748b',
-    marginTop: 2,
+    width: 18,
   },
   setDetail: {
-    fontSize: 13,
-    color: '#64748b',
     marginTop: 2,
-    marginLeft: 4,
   },
   notesSection: {
-    marginTop: 12,
-    paddingTop: 12,
+    marginTop: t.spacing.md,
+    paddingTop: t.spacing.md,
     borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
-  },
-  notesLabel: {
-    fontSize: 12,
-    color: '#64748b',
-    fontWeight: '600',
-    marginBottom: 4,
+    borderTopColor: t.colors.border,
   },
   notesText: {
-    fontSize: 14,
-    color: '#64748b',
+    marginTop: t.spacing.xs,
     fontStyle: 'italic',
   },
-});
+}));

@@ -1,27 +1,41 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  View,
 } from 'react-native';
+import {
+  AppDialog,
+  Button,
+  Card,
+  Celebration,
+  CelebrationVariant,
+  FadeIn,
+  IconButton,
+  PressableScale,
+  Text,
+  TextField,
+  FormModal,
+} from '@/components/ui';
+import { useAppDialog } from '@/hooks/use-app-dialog';
+import { makeStyles, useTheme } from '@/theme';
 import ExerciseHistoryCard from './components/ExerciseHistoryCard';
 import { Exercise, ExerciseLibrary, Workout, WorkoutExercise } from './types/workout';
 import { generateId } from './utils/helpers';
-import { addWorkout, loadLibrary, updateExerciseNote, updateExercisePhoto } from './utils/storage';
+import { getExerciseBest } from './utils/stats';
+import { addWorkout, loadLibrary, loadWorkouts, updateExerciseNote, updateExercisePhoto } from './utils/storage';
 
 export default function LogExerciseScreen() {
   const router = useRouter();
+  const theme = useTheme();
+  const styles = useStyles();
+  const dialog = useAppDialog();
   const { sportId, categoryId, muscleId, exerciseId, exerciseName } = useLocalSearchParams<{
     sportId: string;
     categoryId: string;
@@ -29,16 +43,16 @@ export default function LogExerciseScreen() {
     exerciseId: string;
     exerciseName: string;
   }>();
+
   const [exercise, setExercise] = useState<Exercise | null>(null);
-  const [sets, setSets] = useState<{ reps: string; weight: string }[]>([
-    { reps: '', weight: '' },
-  ]);
+  const [sets, setSets] = useState<{ reps: string; weight: string }[]>([{ reps: '', weight: '' }]);
   const [loading, setLoading] = useState(true);
   const [takingPhoto, setTakingPhoto] = useState(false);
   const [noteModalVisible, setNoteModalVisible] = useState(false);
   const [noteDraft, setNoteDraft] = useState('');
   const [savingNote, setSavingNote] = useState(false);
   const [newSetAdded, setNewSetAdded] = useState(false);
+  const [celebration, setCelebration] = useState<CelebrationVariant | null>(null);
   const setsScrollRef = useRef<ScrollView | null>(null);
 
   const sportIdString = Array.isArray(sportId) ? sportId[0] : sportId;
@@ -52,13 +66,10 @@ export default function LogExerciseScreen() {
       const library: ExerciseLibrary = await loadLibrary();
       const sport = library.sports.find((s) => s.id === sportIdString);
       const category = sport?.categories.find((c) => c.id === categoryIdString);
-      const muscle = muscleIdString
-        ? category?.muscleGroups.find((m) => m.id === muscleIdString)
-        : undefined;
+      const muscle = muscleIdString ? category?.muscleGroups.find((m) => m.id === muscleIdString) : undefined;
       const foundExercise = muscle
         ? muscle.exercises.find((e) => e.id === exerciseIdString)
         : category?.exercises.find((e) => e.id === exerciseIdString);
-      
       if (foundExercise) {
         setExercise(foundExercise);
         setNoteDraft(foundExercise.note || '');
@@ -75,19 +86,24 @@ export default function LogExerciseScreen() {
   }, [loadExerciseData]);
 
   const handleAddSet = () => {
-    setSets([...sets, { reps: '', weight: '' }]);
+    setSets((prev) => [...prev, { reps: '', weight: '' }]);
     setNewSetAdded(true);
   };
 
   const handleUpdateSet = (index: number, field: 'reps' | 'weight', value: string) => {
-    const newSets = [...sets];
-    newSets[index][field] = value;
-    setSets(newSets);
+    setSets((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], [field]: value };
+      return next;
+    });
+  };
+
+  const handleRemoveSet = (index: number) => {
+    setSets((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleCompleteSet = async () => {
     try {
-      // Filter valid sets
       const validSets = sets
         .filter((set) => set.reps.trim() !== '')
         .map((set) => ({
@@ -96,22 +112,35 @@ export default function LogExerciseScreen() {
           weight: set.weight.trim() === '' ? null : parseFloat(set.weight),
         }));
 
-      // Check if there are any valid sets
       if (validSets.length === 0) {
-        console.warn('No valid sets to save');
+        dialog.alert('Add a set', 'Enter at least one set with reps before completing.');
         return;
       }
 
-      // Create workout exercise entry
+      // Detect a personal record against prior history (before saving the new one).
+      const priorWorkouts = await loadWorkouts();
+      const prior = getExerciseBest(priorWorkouts, exerciseIdString);
+      const weights = validSets.map((s) => s.weight).filter((w): w is number => typeof w === 'number');
+      const newMaxWeight = weights.length ? Math.max(...weights) : 0;
+      const newMaxReps = Math.max(...validSets.map((s) => s.reps));
+
+      let isPR = false;
+      if (prior.hasHistory) {
+        if (prior.hasWeight || newMaxWeight > 0) {
+          isPR = newMaxWeight > prior.maxWeight;
+        } else {
+          isPR = newMaxReps > prior.maxReps;
+        }
+      }
+
       const workoutExercise: WorkoutExercise = {
         id: generateId(),
         exerciseId: exerciseIdString,
-        exerciseName: exerciseName,
+        exerciseName,
         muscle: exercise?.muscle || '',
         sets: validSets,
       };
 
-      // Create complete workout entry
       const workout: Workout = {
         id: generateId(),
         date: new Date().toISOString(),
@@ -120,149 +149,102 @@ export default function LogExerciseScreen() {
         exercises: [workoutExercise],
       };
 
-      // Save workout to storage
       await addWorkout(workout);
 
-      // Navigate back
-      router.back();
+      // Celebrate, then return. The celebration calls back when it finishes.
+      if (isPR) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
+      } else {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      }
+      setCelebration(isPR ? 'pr' : 'complete');
     } catch (error) {
       console.error('Error saving workout:', error);
+      dialog.alert('Could not save', 'Please try again.');
     }
-  };
-
-  const handleRemoveSet = (index: number) => {
-    setSets(sets.filter((_, i) => i !== index));
   };
 
   const handleCapturePhoto = async () => {
     if (Platform.OS === 'web') {
-      Alert.alert('Camera not supported', 'Camera capture is not supported on web.');
+      dialog.alert('Camera not supported', 'Camera capture is not supported on web.');
       return;
     }
-
     try {
       setTakingPhoto(true);
       const permission = await ImagePicker.requestCameraPermissionsAsync();
       if (!permission.granted) {
-        Alert.alert('Permission needed', 'Please enable camera access to take exercise photos.');
+        dialog.alert('Permission needed', 'Please enable camera access to take exercise photos.');
         return;
       }
-
-      const result = await ImagePicker.launchCameraAsync({
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.7,
-      });
-
-      if (result.canceled || result.assets.length === 0) {
-        return;
-      }
-
+      const result = await ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [4, 3], quality: 0.7 });
+      if (result.canceled || result.assets.length === 0) return;
       const uri = result.assets[0].uri;
-      await updateExercisePhoto(
-        sportIdString,
-        categoryIdString,
-        muscleIdString || null,
-        exerciseIdString,
-        uri
-      );
-
+      await updateExercisePhoto(sportIdString, categoryIdString, muscleIdString || null, exerciseIdString, uri);
       setExercise((prev) => (prev ? { ...prev, photoUri: uri } : prev));
     } catch (error) {
       console.error('Error capturing exercise photo:', error);
-      Alert.alert('Could not save photo', 'Please try taking the photo again.');
+      dialog.alert('Could not save photo', 'Please try taking the photo again.');
     } finally {
       setTakingPhoto(false);
     }
   };
 
   const handleRemovePhoto = () => {
-    Alert.alert('Remove photo?', 'This will remove the current exercise photo.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Remove',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await updateExercisePhoto(
-              sportIdString,
-              categoryIdString,
-              muscleIdString || null,
-              exerciseIdString,
-              null
-            );
-            setExercise((prev) => (prev ? { ...prev, photoUri: undefined } : prev));
-          } catch (error) {
-            console.error('Error removing exercise photo:', error);
-            Alert.alert('Could not remove photo', 'Please try again.');
-          }
-        },
+    dialog.confirm({
+      title: 'Remove photo?',
+      message: 'This will remove the current exercise photo.',
+      confirmLabel: 'Remove',
+      destructive: true,
+      onConfirm: async () => {
+        try {
+          await updateExercisePhoto(sportIdString, categoryIdString, muscleIdString || null, exerciseIdString, null);
+          setExercise((prev) => (prev ? { ...prev, photoUri: undefined } : prev));
+        } catch {
+          dialog.alert('Could not remove photo', 'Please try again.');
+        }
       },
-    ]);
-  };
-
-  const handleOpenNoteModal = () => {
-    setNoteDraft(exercise?.note || '');
-    setNoteModalVisible(true);
+    });
   };
 
   const handleSaveNote = async () => {
     try {
       setSavingNote(true);
-      await updateExerciseNote(
-        sportIdString,
-        categoryIdString,
-        muscleIdString || null,
-        exerciseIdString,
-        noteDraft
-      );
+      await updateExerciseNote(sportIdString, categoryIdString, muscleIdString || null, exerciseIdString, noteDraft);
       const trimmed = noteDraft.trim();
       setExercise((prev) => (prev ? { ...prev, note: trimmed.length > 0 ? trimmed : undefined } : prev));
       setNoteModalVisible(false);
-    } catch (error) {
-      console.error('Error saving exercise note:', error);
-      Alert.alert('Could not save note', 'Please try again.');
+    } catch {
+      dialog.alert('Could not save note', 'Please try again.');
     } finally {
       setSavingNote(false);
     }
   };
 
   const handleRemoveNote = () => {
-    Alert.alert('Remove note?', 'This will remove the exercise note.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Remove',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await updateExerciseNote(
-              sportIdString,
-              categoryIdString,
-              muscleIdString || null,
-              exerciseIdString,
-              null
-            );
-            setExercise((prev) => (prev ? { ...prev, note: undefined } : prev));
-          } catch (error) {
-            console.error('Error removing exercise note:', error);
-            Alert.alert('Could not remove note', 'Please try again.');
-          }
-        },
+    dialog.confirm({
+      title: 'Remove note?',
+      message: 'This will remove the exercise note.',
+      confirmLabel: 'Remove',
+      destructive: true,
+      onConfirm: async () => {
+        try {
+          await updateExerciseNote(sportIdString, categoryIdString, muscleIdString || null, exerciseIdString, null);
+          setExercise((prev) => (prev ? { ...prev, note: undefined } : prev));
+          setNoteDraft('');
+        } catch {
+          dialog.alert('Could not remove note', 'Please try again.');
+        }
       },
-    ]);
+    });
   };
 
   useEffect(() => {
-    if (!newSetAdded) {
-      return;
-    }
-
-    // Ensure we scroll to the newest set after it is rendered.
+    if (!newSetAdded) return;
     const timer = setTimeout(() => {
       setsScrollRef.current?.scrollToEnd({ animated: true });
       setNewSetAdded(false);
     }, 120);
-
     return () => clearTimeout(timer);
   }, [newSetAdded]);
 
@@ -276,500 +258,244 @@ export default function LogExerciseScreen() {
       <Stack.Screen
         options={{
           title: exerciseName || 'Log Exercise',
-          contentStyle: {
-            backgroundColor: '#f8fafc',
-          },
           headerRight: () => (
             <View style={styles.headerActions}>
-              <TouchableOpacity
+              <IconButton
+                icon={takingPhoto ? 'hourglass-outline' : 'camera-outline'}
                 onPress={handleCapturePhoto}
                 disabled={takingPhoto}
-                style={styles.headerButton}
-              >
-                <Ionicons name={takingPhoto ? 'hourglass' : 'camera'} size={22} color="#3b82f6" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() =>
-                  router.push({
-                    pathname: '/exercise-history',
-                    params: { exerciseId, exerciseName },
-                  })
-                }
-                style={styles.headerButton}
-              >
-                <Ionicons name="stats-chart" size={22} color="#3b82f6" />
-              </TouchableOpacity>
+                variant="plain"
+                color={theme.colors.accent}
+                accessibilityLabel="Take photo"
+              />
+              <IconButton
+                icon="stats-chart-outline"
+                onPress={() => router.push({ pathname: '/exercise-history', params: { exerciseId, exerciseName } })}
+                variant="plain"
+                color={theme.colors.accent}
+                accessibilityLabel="Exercise history"
+              />
             </View>
           ),
         }}
       />
       {loading ? (
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading...</Text>
+        <View style={styles.center}>
+          <Text variant="body" color="textMuted">Loading…</Text>
         </View>
       ) : (
         <ScrollView
           ref={setsScrollRef}
-          style={styles.pageScrollView}
-          contentContainerStyle={styles.pageContent}
+          style={styles.flex}
+          contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
-          scrollEventThrottle={16}
+          showsVerticalScrollIndicator={false}
           onContentSizeChange={() => {
-            if (newSetAdded) {
-              setsScrollRef.current?.scrollToEnd({ animated: true });
-            }
+            if (newSetAdded) setsScrollRef.current?.scrollToEnd({ animated: true });
           }}
         >
-          <Text style={styles.title}>{exercise?.name}</Text>
-          <Text style={styles.subtitle}>{exercise?.muscle}</Text>
+          <FadeIn>
+            <Text variant="title">{exercise?.name}</Text>
+            <Text variant="body" color="textSecondary" style={styles.subtitle}>
+              {exercise?.muscle}
+            </Text>
+          </FadeIn>
 
           {exercise?.photoUri ? (
-            <View style={styles.photoCard}>
+            <FadeIn delay={40}>
+              <Card padded={false} style={styles.photoCard}>
                 <Image source={{ uri: exercise.photoUri }} style={styles.exerciseImage} contentFit="cover" />
-                <View style={styles.photoActionsRow}>
-                  <TouchableOpacity style={styles.photoActionButton} onPress={handleCapturePhoto}>
-                    <Ionicons name="camera" size={16} color="#dbeafe" />
-                    <Text style={styles.photoActionText}>Retake</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.photoActionButtonDanger} onPress={handleRemovePhoto}>
-                    <Ionicons name="trash-outline" size={16} color="#fecaca" />
-                    <Text style={styles.photoActionTextDanger}>Remove</Text>
-                  </TouchableOpacity>
+                <View style={styles.photoActions}>
+                  <PressableScale onPress={handleCapturePhoto} style={[styles.photoBtn, { backgroundColor: theme.colors.overlay }]}>
+                    <Ionicons name="camera" size={15} color="#fff" />
+                    <Text variant="caption" color="#fff">Retake</Text>
+                  </PressableScale>
+                  <PressableScale onPress={handleRemovePhoto} style={[styles.photoBtn, { backgroundColor: theme.colors.danger }]}>
+                    <Ionicons name="trash-outline" size={15} color="#fff" />
+                    <Text variant="caption" color="#fff">Remove</Text>
+                  </PressableScale>
                 </View>
-            </View>
+              </Card>
+            </FadeIn>
           ) : null}
 
-          <View style={styles.noteCard}>
-            <View style={styles.noteHeaderRow}>
-              <Text style={styles.noteTitle}>Exercise Note</Text>
-              <View style={styles.noteHeaderActions}>
-                <TouchableOpacity onPress={handleOpenNoteModal} style={styles.noteActionButton}>
-                  <Ionicons name="create-outline" size={16} color="#93c5fd" />
-                  <Text style={styles.noteActionText}>{exercise?.note ? 'Edit' : 'Add'}</Text>
-                </TouchableOpacity>
-                {exercise?.note ? (
-                  <TouchableOpacity onPress={handleRemoveNote} style={styles.noteActionButtonDanger}>
-                    <Ionicons name="close-circle-outline" size={16} color="#fecaca" />
-                    <Text style={styles.noteActionTextDanger}>Remove</Text>
-                  </TouchableOpacity>
-                ) : null}
-              </View>
-            </View>
-            {exercise?.note ? (
-              <Text style={styles.noteBody}>{exercise.note}</Text>
-            ) : (
-              <Text style={styles.noteEmpty}>No note yet. Add cues like grip width, bench setup, or tempo.</Text>
-            )}
-          </View>
-
-          <ExerciseHistoryCard
-            exerciseId={exerciseId}
-          />
-
-          <Modal
-            visible={noteModalVisible}
-            transparent={true}
-            animationType="fade"
-            onRequestClose={() => setNoteModalVisible(false)}
-          >
-            <View style={styles.modalOverlay}>
-              <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>Exercise Note</Text>
-                <TextInput
-                  style={styles.noteInput}
-                  placeholder="Write your persistent note for this exercise"
-                  placeholderTextColor="#6b7280"
-                  multiline
-                  value={noteDraft}
-                  onChangeText={setNoteDraft}
-                />
-                <View style={styles.modalActionsRow}>
-                  <TouchableOpacity
-                    style={styles.modalCancelButton}
-                    onPress={() => setNoteModalVisible(false)}
-                  >
-                    <Text style={styles.modalCancelText}>Cancel</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.modalSaveButton}
-                    onPress={handleSaveNote}
-                    disabled={savingNote}
-                  >
-                    <Text style={styles.modalSaveText}>{savingNote ? 'Saving...' : 'Save Note'}</Text>
-                  </TouchableOpacity>
+          <FadeIn delay={70}>
+            <Card style={styles.noteCard}>
+              <View style={styles.noteHeader}>
+                <Text variant="overline" color="textSecondary">Exercise Note</Text>
+                <View style={styles.noteHeaderActions}>
+                  <PressableScale onPress={() => { setNoteDraft(exercise?.note || ''); setNoteModalVisible(true); }} hitSlop={6}>
+                    <Text variant="label" color="accent">{exercise?.note ? 'Edit' : 'Add'}</Text>
+                  </PressableScale>
+                  {exercise?.note ? (
+                    <PressableScale onPress={handleRemoveNote} hitSlop={6}>
+                      <Text variant="label" color="danger">Remove</Text>
+                    </PressableScale>
+                  ) : null}
                 </View>
               </View>
-            </View>
-          </Modal>
+              {exercise?.note ? (
+                <Text variant="body" color="textSecondary" style={styles.noteBody}>{exercise.note}</Text>
+              ) : (
+                <Text variant="caption" color="textMuted" style={styles.noteBody}>
+                  No note yet. Add cues like grip width, bench setup, or tempo.
+                </Text>
+              )}
+            </Card>
+          </FadeIn>
 
-          <Text style={styles.sectionTitle}>Today’s Workout</Text>
+          <FadeIn delay={100}>
+            <ExerciseHistoryCard exerciseId={exerciseId} />
+          </FadeIn>
 
-          <View style={styles.setsList}>
-            {sets.map((set, index) => (
-              <View key={index} style={styles.setCard}>
-                <Text style={styles.setLabel}>Set {index + 1}</Text>
+          <Text variant="subheading" style={styles.sectionTitle}>Today&apos;s Workout</Text>
+
+          {sets.map((set, index) => (
+            <FadeIn key={index} delay={index === sets.length - 1 ? 0 : undefined}>
+              <Card style={styles.setCard}>
+                <View style={styles.setHeader}>
+                  <Text variant="bodyStrong">Set {index + 1}</Text>
+                  {sets.length > 1 ? (
+                    <PressableScale onPress={() => handleRemoveSet(index)} hitSlop={8}>
+                      <Ionicons name="close-circle" size={22} color={theme.colors.textMuted} />
+                    </PressableScale>
+                  ) : null}
+                </View>
                 <View style={styles.inputRow}>
-                  <View style={styles.inputContainer}>
-                    <Text style={styles.inputLabel}>Reps</Text>
-                    <TextInput
-                      style={styles.input}
-                      placeholder="0"
-                      placeholderTextColor="#6b7280"
-                      keyboardType="number-pad"
-                      value={set.reps}
-                      onChangeText={(value) =>
-                        handleUpdateSet(index, 'reps', value)
-                      }
-                    />
-                  </View>
-                  <View style={styles.inputContainer}>
-                    <Text style={styles.inputLabel}>Weight (kg, optional)</Text>
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Optional"
-                      placeholderTextColor="#6b7280"
-                      keyboardType="decimal-pad"
-                      value={set.weight}
-                      onChangeText={(value) =>
-                        handleUpdateSet(index, 'weight', value)
-                      }
-                    />
-                  </View>
+                  <TextField
+                    label="Reps"
+                    containerStyle={styles.flex}
+                    placeholder="0"
+                    keyboardType="number-pad"
+                    value={set.reps}
+                    onChangeText={(value) => handleUpdateSet(index, 'reps', value)}
+                  />
+                  <TextField
+                    label="Weight (kg, optional)"
+                    containerStyle={styles.flex}
+                    placeholder="Optional"
+                    keyboardType="decimal-pad"
+                    value={set.weight}
+                    onChangeText={(value) => handleUpdateSet(index, 'weight', value)}
+                  />
                 </View>
-                {sets.length > 1 && (
-                  <TouchableOpacity
-                    style={styles.removeButton}
-                    onPress={() => handleRemoveSet(index)}
-                  >
-                    <Ionicons name="close" size={20} color="#ef4444" />
-                  </TouchableOpacity>
-                )}
-              </View>
-            ))}
-          </View>
+              </Card>
+            </FadeIn>
+          ))}
 
-          <View style={styles.buttonContainer}>
-            <TouchableOpacity
-              style={styles.addSetButton}
-              onPress={handleAddSet}
-            >
-              <Ionicons name="add" size={24} color="#ffffff" />
-              <Text style={styles.addSetButtonText}>Add Set</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.completeButton}
-              onPress={handleCompleteSet}
-            >
-              <Text style={styles.completeButtonText}>Complete</Text>
-            </TouchableOpacity>
+          <View style={styles.actions}>
+            <Button label="Add Set" icon="add" variant="secondary" onPress={handleAddSet} style={styles.flex} />
+            <Button label="Complete" icon="checkmark" onPress={handleCompleteSet} style={styles.flex} />
           </View>
         </ScrollView>
       )}
+
+      <FormModal
+        visible={noteModalVisible}
+        title="Exercise Note"
+        primaryLabel="Save Note"
+        primaryLoading={savingNote}
+        onPrimary={handleSaveNote}
+        onCancel={() => setNoteModalVisible(false)}
+      >
+        <TextField
+          placeholder="Write your persistent note for this exercise"
+          multiline
+          value={noteDraft}
+          onChangeText={setNoteDraft}
+        />
+      </FormModal>
+
+      <AppDialog {...dialog.props} />
+
+      {celebration ? (
+        <Celebration variant={celebration} onDone={() => router.back()} />
+      ) : null}
     </KeyboardAvoidingView>
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((t) => ({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: t.colors.background,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#0f172a',
-    paddingHorizontal: 16,
-    paddingTop: 16,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#64748b',
-    paddingHorizontal: 16,
-    marginBottom: 12,
+  flex: { flex: 1 },
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 8,
   },
-  headerButton: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+  content: {
+    padding: t.spacing.xl,
+    paddingBottom: t.spacing['4xl'],
   },
-  pageScrollView: {
-    flex: 1,
-  },
-  pageContent: {
-    paddingBottom: 28,
+  subtitle: {
+    marginTop: t.spacing.xs,
+    marginBottom: t.spacing.lg,
   },
   photoCard: {
-    marginHorizontal: 16,
-    marginBottom: 14,
-    borderRadius: 12,
     overflow: 'hidden',
-    backgroundColor: '#ffffff',
-    borderColor: '#e2e8f0',
-    borderWidth: 1,
+    marginBottom: t.spacing.lg,
   },
   exerciseImage: {
     width: '100%',
-    height: 170,
+    height: 180,
   },
-  photoActionsRow: {
+  photoActions: {
     position: 'absolute',
-    right: 10,
-    bottom: 10,
+    right: t.spacing.md,
+    bottom: t.spacing.md,
     flexDirection: 'row',
-    gap: 8,
+    gap: t.spacing.sm,
   },
-  photoActionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(30, 64, 175, 0.75)',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  photoActionButtonDanger: {
+  photoBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(127, 29, 29, 0.78)',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  photoActionText: {
-    color: '#dbeafe',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  photoActionTextDanger: {
-    color: '#fecaca',
-    fontSize: 12,
-    fontWeight: '700',
+    gap: t.spacing.xs,
+    borderRadius: t.radius.sm,
+    paddingHorizontal: t.spacing.md,
+    paddingVertical: t.spacing.sm,
   },
   noteCard: {
-    marginHorizontal: 16,
-    marginBottom: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    backgroundColor: '#ffffff',
-    padding: 14,
+    marginBottom: t.spacing.lg,
   },
-  noteHeaderRow: {
+  noteHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 10,
-  },
-  noteTitle: {
-    color: '#334155',
-    fontSize: 14,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
   },
   noteHeaderActions: {
     flexDirection: 'row',
-    gap: 8,
-  },
-  noteActionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#1e3a8a',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  noteActionButtonDanger: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#7f1d1d',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  noteActionText: {
-    color: '#dbeafe',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  noteActionTextDanger: {
-    color: '#fecaca',
-    fontSize: 12,
-    fontWeight: '600',
+    gap: t.spacing.lg,
   },
   noteBody: {
-    color: '#334155',
-    fontSize: 14,
-    lineHeight: 20,
-    marginTop: 12,
-  },
-  noteEmpty: {
-    color: '#64748b',
-    fontSize: 13,
-    marginTop: 12,
-    lineHeight: 18,
-  },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(15, 23, 42, 0.35)',
-    paddingHorizontal: 16,
-  },
-  modalContent: {
-    width: '100%',
-    maxWidth: 420,
-    backgroundColor: '#ffffff',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    padding: 16,
-  },
-  modalTitle: {
-    color: '#0f172a',
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 12,
-  },
-  noteInput: {
-    minHeight: 120,
-    color: '#0f172a',
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
-    borderRadius: 10,
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    textAlignVertical: 'top',
-  },
-  modalActionsRow: {
-    marginTop: 14,
-    flexDirection: 'row',
-    gap: 10,
-  },
-  modalCancelButton: {
-    flex: 1,
-    backgroundColor: '#e2e8f0',
-    paddingVertical: 11,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  modalSaveButton: {
-    flex: 1,
-    backgroundColor: '#2563eb',
-    paddingVertical: 11,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  modalCancelText: {
-    color: '#0f172a',
-    fontWeight: '600',
-  },
-  modalSaveText: {
-    color: '#ffffff',
-    fontWeight: '700',
+    marginTop: t.spacing.md,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#0f172a',
-    marginBottom: 12,
-    marginTop: 8,
-    paddingHorizontal: 16,
-  },
-  setsList: {
-    paddingTop: 4,
-    paddingHorizontal: 16,
-    paddingBottom: 8,
+    marginTop: t.spacing.sm,
+    marginBottom: t.spacing.md,
   },
   setCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    marginBottom: t.spacing.md,
   },
-  setLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#0f172a',
-    marginBottom: 12,
+  setHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: t.spacing.md,
   },
   inputRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: t.spacing.md,
   },
-  inputContainer: {
-    flex: 1,
-  },
-  inputLabel: {
-    fontSize: 12,
-    color: '#64748b',
-    marginBottom: 6,
-  },
-  input: {
-    backgroundColor: '#ffffff',
-    borderColor: '#cbd5e1',
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    color: '#0f172a',
-    fontSize: 16,
-  },
-  removeButton: {
-    alignSelf: 'flex-end',
-    marginTop: 12,
-    padding: 8,
-  },
-  buttonContainer: {
+  actions: {
     flexDirection: 'row',
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 4,
+    gap: t.spacing.md,
+    marginTop: t.spacing.sm,
   },
-  addSetButton: {
-    flex: 1,
-    backgroundColor: '#e2e8f0',
-    paddingVertical: 12,
-    borderRadius: 8,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
-  },
-  addSetButtonText: {
-    color: '#0f172a',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  completeButton: {
-    flex: 1,
-    backgroundColor: '#3b82f6',
-    paddingVertical: 12,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  completeButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    color: '#0f172a',
-    fontSize: 16,
-  },
-});
+}));

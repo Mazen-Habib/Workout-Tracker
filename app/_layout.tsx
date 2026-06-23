@@ -1,131 +1,79 @@
-import { DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import {
+  DarkTheme as NavDarkTheme,
+  DefaultTheme as NavLightTheme,
+  ThemeProvider as NavThemeProvider,
+} from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import 'react-native-reanimated';
-
+import { ThemeProvider, useTheme } from '@/theme';
 
 export const unstable_settings = {
   anchor: '(tabs)',
 };
 
-const lightHeaderOptions = {
-  headerStyle: {
-    backgroundColor: '#ffffff',
-  },
-  headerTintColor: '#0f172a',
-  headerTitleStyle: {
-    color: '#0f172a',
-    fontSize: 18,
-    fontWeight: '600' as const,
-  },
-};
+function RootNavigator() {
+  const theme = useTheme();
 
-export default function RootLayout() {
-  const customTheme = {
-    ...DefaultTheme,
+  const navTheme = {
+    ...(theme.mode === 'dark' ? NavDarkTheme : NavLightTheme),
     colors: {
-      ...DefaultTheme.colors,
-      background: '#f8fafc',
+      ...(theme.mode === 'dark' ? NavDarkTheme : NavLightTheme).colors,
+      background: theme.colors.background,
+      card: theme.colors.surface,
+      text: theme.colors.text,
+      border: theme.colors.border,
+      primary: theme.colors.accent,
     },
   };
 
+  const headerOptions = {
+    headerStyle: { backgroundColor: theme.colors.surface },
+    headerTintColor: theme.colors.text,
+    headerTitleStyle: { color: theme.colors.text, fontSize: 18, fontWeight: '600' as const },
+    headerShadowVisible: false,
+    contentStyle: { backgroundColor: theme.colors.background },
+  };
+
+  // Quick cross-fade between pushed screens — the snappy content "pop" comes
+  // from each screen's own FadeIn/Appear entrances, not a heavy slide.
+  const popOptions = { ...headerOptions, animation: 'fade' as const, animationDuration: 180 };
+
   return (
-    <View style={{ flex: 1, backgroundColor: '#f8fafc' }}>
-      <ThemeProvider value={customTheme}>
-        <Stack
-          screenOptions={{
-            contentStyle: { backgroundColor: '#f8fafc' },
-            headerStyle: { backgroundColor: '#ffffff' },
-            headerTintColor: '#0f172a',
-          }}
-        >
-        {/* Main Tab Navigation */}
-        <Stack.Screen
-          name="(tabs)"
-          options={{
-            headerShown: false,
-          }}
-        />
-
-        {/* Modal Screen */}
-        <Stack.Screen
-          name="modal"
-          options={{
-            presentation: 'modal',
-            title: 'Modal',
-            ...lightHeaderOptions,
-          }}
-        />
-
-        {/* Workout Logging Flow - Modal Presentation Style */}
-        <Stack.Screen
-          name="select-category"
-          options={{
-            presentation: 'modal',
-            animation: 'none',
-            title: 'Select Category',
-            contentStyle: {
-              backgroundColor: '#f8fafc',
-            },
-            ...lightHeaderOptions,
-          }}
-        />
-
-        <Stack.Screen
-          name="select-muscle"
-          options={{
-            presentation: 'modal',
-            animation: 'none',
-            title: 'Select Muscle Group',
-            contentStyle: {
-              backgroundColor: '#f8fafc',
-            },
-            ...lightHeaderOptions,
-          }}
-        />
-
-        <Stack.Screen
-          name="select-exercise"
-          options={{
-            presentation: 'modal',
-            animation: 'none',
-            title: 'Select Exercise',
-            contentStyle: {
-              backgroundColor: '#f8fafc',
-            },
-            ...lightHeaderOptions,
-          }}
-        />
-
-        <Stack.Screen
-          name="log-exercise"
-          options={{
-            presentation: 'modal',
-            animation: 'none',
-            title: 'Log Exercise',
-            contentStyle: {
-              backgroundColor: '#f8fafc',
-            },
-            ...lightHeaderOptions,
-          }}
-        />
-
-        <Stack.Screen
-          name="exercise-history"
-          options={{
-            title: 'Exercise History',
-            presentation: 'card',
-            contentStyle: {
-              backgroundColor: '#f8fafc',
-            },
-            headerStyle: { backgroundColor: '#ffffff' },
-            headerTintColor: '#0f172a',
-          }}
-        />
+    <NavThemeProvider value={navTheme}>
+      <Stack screenOptions={popOptions}>
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="modal" options={{ ...headerOptions, presentation: 'modal', title: 'Modal' }} />
+        <Stack.Screen name="select-category" options={{ ...popOptions, title: 'Select Category' }} />
+        <Stack.Screen name="select-muscle" options={{ ...popOptions, title: 'Select Muscle Group' }} />
+        <Stack.Screen name="select-exercise" options={{ ...popOptions, title: 'Select Exercise' }} />
+        <Stack.Screen name="log-exercise" options={{ ...popOptions, title: 'Log Exercise' }} />
+        <Stack.Screen name="exercise-history" options={{ ...popOptions, title: 'Exercise History' }} />
+        <Stack.Screen name="edit-workout" options={{ ...popOptions, title: 'Edit Workout' }} />
       </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
-    </View>
+      <StatusBar style={theme.mode === 'dark' ? 'light' : 'dark'} />
+    </NavThemeProvider>
+  );
+}
+
+// Themed root background prevents a white flash behind screen transitions.
+function ThemedRoot() {
+  const theme = useTheme();
+  return (
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: theme.colors.background }}>
+      <RootNavigator />
+    </GestureHandlerRootView>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <ThemedRoot />
+      </ThemeProvider>
+    </SafeAreaProvider>
   );
 }

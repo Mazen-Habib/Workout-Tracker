@@ -1,0 +1,82 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R 4 0 R] /Count 2 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> /Contents 7 0 R >>
+endobj
+4 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> /Contents 8 0 R >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+6 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+7 0 obj
+<< /Length 1560 >>
+stream
+BT /F2 22 Tf 72 740 Td (Workout Tracker - Claude Code Handoff) Tj ET
+BT /F1 11 Tf 72 716 Td (Expo Router React Native app for tracking workouts, exercise history, and progress locally.) Tj ET
+BT /F2 14 Tf 72 680 Td (What the project is about) Tj ET
+BT /F1 11 Tf 72 660 Td (The app lets users log workouts, store sets and notes, track exercise photos, and review progress over time.) Tj ET
+BT /F1 11 Tf 72 642 Td (It supports a flexible exercise library with sports, categories, optional muscle groups, and exercises.) Tj ET
+BT /F1 11 Tf 72 624 Td (All important data is stored locally with AsyncStorage. There is no server or cloud backend in this workspace.) Tj ET
+BT /F2 14 Tf 72 586 Td (Main user flow) Tj ET
+BT /F1 11 Tf 72 566 Td (Home -> Log Workout -> select sport/category/muscle/exercise -> enter sets -> save workout.) Tj ET
+BT /F1 11 Tf 72 548 Td (History and Progress read from the same saved workout records.) Tj ET
+BT /F1 11 Tf 72 530 Td (Quick Notes and the home background image are separate local features saved alongside workouts.) Tj ET
+BT /F2 14 Tf 72 492 Td (Claude Code notes) Tj ET
+BT /F1 11 Tf 72 472 Td (Category trees use parentCategoryId, with root categories stored as parentCategoryId = null.) Tj ET
+BT /F1 11 Tf 72 454 Td (Deleting a category removes its full descendant subtree.) Tj ET
+BT /F1 11 Tf 72 436 Td (Sports with requiresMuscleGroups = false skip the muscle-group step and route directly to exercises.) Tj ET
+BT /F1 11 Tf 72 418 Td (The default seeded library is Gym -> Push -> Chest with sample chest exercises.) Tj ET
+endstream
+endobj
+8 0 obj
+<< /Length 2128 >>
+stream
+BT /F2 22 Tf 72 740 Td (Workspace Structure) Tj ET
+BT /F1 11 Tf 72 714 Td (Key folders and files to understand first:) Tj ET
+BT /F2 14 Tf 72 678 Td (Routes and screens) Tj ET
+BT /F1 11 Tf 72 658 Td (app/_layout.tsx - root stack, theme, and modal route configuration.) Tj ET
+BT /F1 11 Tf 72 640 Td (app/\(tabs\)/_layout.tsx - bottom tabs for Home, Log Workout, History, Progress, and Notes.) Tj ET
+BT /F1 11 Tf 72 622 Td (app/\(tabs\)/index.tsx - dashboard home with recent workouts and background image controls.) Tj ET
+BT /F1 11 Tf 72 604 Td (app/\(tabs\)/log-workout.tsx - starts the workout creation flow.) Tj ET
+BT /F1 11 Tf 72 586 Td (app/select-category.tsx, select-muscle.tsx, and select-exercise.tsx - workout library navigation.) Tj ET
+BT /F1 11 Tf 72 568 Td (app/log-exercise.tsx - enters sets, photos, notes, and saves a workout.) Tj ET
+BT /F1 11 Tf 72 550 Td (app/\(tabs\)/history.tsx and app/exercise-history.tsx - workout history views.) Tj ET
+BT /F1 11 Tf 72 532 Td (app/\(tabs\)/progress.tsx - workout stats, charts, and personal records.) Tj ET
+BT /F1 11 Tf 72 514 Td (app/\(tabs\)/notes.tsx - quick notes saved locally.) Tj ET
+BT /F2 14 Tf 72 476 Td (Data and logic) Tj ET
+BT /F1 11 Tf 72 456 Td (app/types/workout.ts - domain models for workouts, exercise library, categories, muscles, and sports.) Tj ET
+BT /F1 11 Tf 72 438 Td (app/utils/storage.ts - AsyncStorage persistence for workouts, library, notes, and the home background.) Tj ET
+BT /F1 11 Tf 72 420 Td (app/utils/stats.ts - progress calculations used by the analytics screen.) Tj ET
+BT /F1 11 Tf 72 402 Td (app/utils/helpers.ts - shared helpers such as ID generation.) Tj ET
+BT /F2 14 Tf 72 364 Td (Shared UI and support files) Tj ET
+BT /F1 11 Tf 72 344 Td (components/ - themed wrappers and shared UI primitives.) Tj ET
+BT /F1 11 Tf 72 326 Td (app/components/ - feature-specific UI like ExerciseHistoryCard and SetRow.) Tj ET
+BT /F1 11 Tf 72 308 Td (constants/theme.ts and hooks/ - styling and color-scheme helpers.) Tj ET
+BT /F1 11 Tf 72 290 Td (assets/ - image assets, scripts/ - project reset helper, app.json and eas.json - Expo config.) Tj ET
+endstream
+endobj
+xref
+0 9
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000121 00000 n 
+0000000257 00000 n 
+0000000393 00000 n 
+0000000463 00000 n 
+0000000538 00000 n 
+0000002149 00000 n 
+trailer
+<< /Size 9 /Root 1 0 R >>
+startxref
+4328
+%%EOF

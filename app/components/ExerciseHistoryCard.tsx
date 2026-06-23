@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { View } from 'react-native';
+import { Card, Text } from '@/components/ui';
+import { makeStyles, useTheme } from '@/theme';
 import { ExerciseSet, Workout, WorkoutExercise } from '../types/workout';
 import { loadWorkouts } from '../utils/storage';
 
@@ -14,20 +16,16 @@ interface ExercisePr {
   workoutDate: string;
 }
 
-export default function ExerciseHistoryCard({
-  exerciseId,
-}: ExerciseHistoryCardProps) {
+export default function ExerciseHistoryCard({ exerciseId }: ExerciseHistoryCardProps) {
+  const theme = useTheme();
+  const styles = useStyles();
   const [lastWorkout, setLastWorkout] = useState<Workout | null>(null);
   const [lastExercise, setLastExercise] = useState<WorkoutExercise | null>(null);
   const [exercisePr, setExercisePr] = useState<ExercisePr | null>(null);
 
   const getValidSets = (exercise: WorkoutExercise): ExerciseSet[] => {
     const rawSets = (exercise as WorkoutExercise & { sets?: unknown }).sets;
-
-    if (!Array.isArray(rawSets)) {
-      return [];
-    }
-
+    if (!Array.isArray(rawSets)) return [];
     return rawSets
       .map((set) => set as { id?: string; reps?: number; weight?: number | null })
       .filter(
@@ -47,14 +45,9 @@ export default function ExerciseHistoryCard({
     const loadExerciseHistory = async () => {
       try {
         const workouts = await loadWorkouts();
-
-        const workoutsWithExercise = workouts.filter((workout) =>
-          workout.exercises.some((exercise) => exercise.exerciseId === exerciseId)
-        );
-
-        const sortedByDate = [...workoutsWithExercise].sort(
-          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-        );
+        const sortedByDate = workouts
+          .filter((workout) => workout.exercises.some((e) => e.exerciseId === exerciseId))
+          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
         let bestPr: ExercisePr | null = null;
         sortedByDate.forEach((workout) => {
@@ -62,48 +55,30 @@ export default function ExerciseHistoryCard({
             .filter((exercise) => exercise.exerciseId === exerciseId)
             .forEach((exercise) => {
               getValidSets(exercise).forEach((set) => {
-                if (typeof set.weight !== 'number') {
-                  return;
-                }
-
-                if (!bestPr) {
+                if (typeof set.weight !== 'number') return;
+                if (!bestPr || typeof bestPr.set.weight !== 'number') {
                   bestPr = { set, workoutDate: workout.date };
                   return;
                 }
-
-                if (typeof bestPr.set.weight !== 'number') {
-                  bestPr = { set, workoutDate: workout.date };
-                  return;
-                }
-
                 const isBetterWeight = set.weight > bestPr.set.weight;
-                const isSameWeightBetterReps =
-                  set.weight === bestPr.set.weight && set.reps > bestPr.set.reps;
-
+                const isSameWeightBetterReps = set.weight === bestPr.set.weight && set.reps > bestPr.set.reps;
                 if (isBetterWeight || isSameWeightBetterReps) {
                   bestPr = { set, workoutDate: workout.date };
                 }
               });
             });
         });
-
         setExercisePr(bestPr);
 
         const mostRecentWorkout = sortedByDate[0];
-
         if (!mostRecentWorkout) {
           setLastWorkout(null);
           setLastExercise(null);
           setExercisePr(null);
           return;
         }
-
-        const matchingExercise = mostRecentWorkout.exercises.find(
-          (exercise) => exercise.exerciseId === exerciseId
-        );
-
         setLastWorkout(mostRecentWorkout);
-        setLastExercise(matchingExercise ?? null);
+        setLastExercise(mostRecentWorkout.exercises.find((e) => e.exerciseId === exerciseId) ?? null);
       } catch (error) {
         console.error('Error loading exercise history:', error);
         setLastWorkout(null);
@@ -111,182 +86,109 @@ export default function ExerciseHistoryCard({
         setExercisePr(null);
       }
     };
-
     loadExerciseHistory();
   }, [exerciseId]);
 
-  const renderSetLines = () => {
-    if (!lastExercise) {
-      return null;
-    }
-
-    const validSets = getValidSets(lastExercise);
-
-    if (validSets.length === 0) {
-      return (
-        <Text style={styles.emptyText}>No previous workout for this exercise</Text>
-      );
-    }
-
-    return validSets.map((set, index) => {
-      const setKey = set.id ?? `${exerciseId}-${index}`;
-
-      return (
-        <View key={setKey} style={styles.setRow}>
-          <Text style={styles.setNumber}>Set {index + 1}</Text>
-          <Text style={styles.setValue}>
-            {typeof set.weight === 'number'
-              ? `${set.reps} reps x ${set.weight} kg`
-              : `${set.reps} reps`}
-          </Text>
-        </View>
-      );
-    });
-  };
-
   if (!lastWorkout || !lastExercise) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.emptyText}>No previous workout for this exercise</Text>
-      </View>
+      <Card style={styles.card}>
+        <Text variant="caption" color="textMuted">No previous workout for this exercise</Text>
+      </Card>
     );
   }
 
+  const validSets = getValidSets(lastExercise);
+
   return (
-    <View style={styles.container}>
+    <Card style={styles.card}>
       <View style={styles.topRow}>
         <View style={styles.titleGroup}>
-          <Ionicons name="time-outline" size={16} color="#93c5fd" />
-          <Text style={styles.topLabel}>Last Workout Snapshot</Text>
+          <Ionicons name="time-outline" size={15} color={theme.colors.accent} />
+          <Text variant="overline" color="accent">Last Workout</Text>
         </View>
         <View style={styles.datePill}>
-          <Text style={styles.datePillText}>{format(new Date(lastWorkout.date), 'MMM d, yyyy')}</Text>
+          <Text variant="caption" color="accent">{format(new Date(lastWorkout.date), 'MMM d, yyyy')}</Text>
         </View>
       </View>
 
       <View style={styles.metricCard}>
-        <Text style={styles.metricLabel}>All-Time Max</Text>
+        <Text variant="overline" color="textMuted">All-Time Max</Text>
         {exercisePr ? (
           <>
-            <Text style={styles.prValueMain}>
-              {exercisePr.set.weight} kg x {exercisePr.set.reps}
+            <Text variant="subheading" color="accent" style={styles.prValue}>
+              {exercisePr.set.weight} kg × {exercisePr.set.reps}
             </Text>
-            <Text style={styles.prDate}>
-              {format(new Date(exercisePr.workoutDate), 'MMM d, yyyy')}
-            </Text>
+            <Text variant="caption" color="textMuted">{format(new Date(exercisePr.workoutDate), 'MMM d, yyyy')}</Text>
           </>
         ) : (
-          <Text style={styles.prDate}>No PR yet</Text>
+          <Text variant="caption" color="textMuted" style={styles.prValue}>No PR yet</Text>
         )}
       </View>
-      <View style={styles.separator} />
-      <Text style={styles.setsHeader}>Sets from last session</Text>
-      {renderSetLines()}
-    </View>
+
+      <Text variant="overline" color="textSecondary" style={styles.setsHeader}>Sets from last session</Text>
+      {validSets.length === 0 ? (
+        <Text variant="caption" color="textMuted">No previous workout for this exercise</Text>
+      ) : (
+        validSets.map((set, index) => (
+          <View key={set.id ?? `${exerciseId}-${index}`} style={styles.setRow}>
+            <Text variant="caption" color="textSecondary">Set {index + 1}</Text>
+            <Text variant="caption" weight="700">
+              {typeof set.weight === 'number' ? `${set.reps} reps × ${set.weight} kg` : `${set.reps} reps`}
+            </Text>
+          </View>
+        ))
+      )}
+    </Card>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: '#ffffff',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
+const useStyles = makeStyles((t) => ({
+  card: {
+    marginBottom: t.spacing.lg,
   },
   topRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: t.spacing.md,
   },
   titleGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-  },
-  topLabel: {
-    fontSize: 12,
-    color: '#3b82f6',
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.7,
+    gap: t.spacing.xs,
   },
   datePill: {
-    backgroundColor: '#eff6ff',
-    borderRadius: 999,
-    borderColor: '#bfdbfe',
+    backgroundColor: t.colors.accentSoft,
+    borderRadius: t.radius.full,
+    borderColor: t.colors.accentBorder,
     borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  datePillText: {
-    fontSize: 12,
-    color: '#1e3a8a',
-    fontWeight: '600',
+    paddingHorizontal: t.spacing.md,
+    paddingVertical: t.spacing.xs,
   },
   metricCard: {
-    backgroundColor: '#f8fafc',
-    borderRadius: 10,
+    backgroundColor: t.colors.surfaceMuted,
+    borderRadius: t.radius.md,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    padding: 10,
+    borderColor: t.colors.border,
+    padding: t.spacing.md,
   },
-  metricLabel: {
-    fontSize: 11,
-    color: '#64748b',
-    fontWeight: '700',
-    textTransform: 'uppercase',
-  },
-  prValueMain: {
-    fontSize: 14,
-    color: '#60a5fa',
-    fontWeight: '700',
-    marginTop: 5,
-  },
-  prDate: {
-    fontSize: 11,
-    color: '#64748b',
-    marginTop: 2,
-  },
-  separator: {
-    height: 1,
-    backgroundColor: '#e2e8f0',
-    marginVertical: 12,
+  prValue: {
+    marginTop: t.spacing.xs,
   },
   setsHeader: {
-    color: '#334155',
-    fontSize: 12,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    marginBottom: 8,
+    marginTop: t.spacing.lg,
+    marginBottom: t.spacing.sm,
   },
   setRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#f8fafc',
-    borderRadius: 8,
+    backgroundColor: t.colors.surfaceMuted,
+    borderRadius: t.radius.sm,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    marginBottom: 6,
+    borderColor: t.colors.border,
+    paddingHorizontal: t.spacing.md,
+    paddingVertical: t.spacing.sm,
+    marginBottom: t.spacing.xs,
   },
-  setNumber: {
-    color: '#64748b',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  setValue: {
-    color: '#0f172a',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  emptyText: {
-    fontSize: 14,
-    color: '#64748b',
-    fontStyle: 'italic',
-  },
-});
+}));

@@ -1,274 +1,205 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
-import React, { useState } from 'react';
-import { Dimensions, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useMemo, useState } from 'react';
+import { Dimensions, View } from 'react-native';
 import { BarChart } from 'react-native-chart-kit';
+import {
+  Card,
+  EmptyState,
+  FadeIn,
+  Screen,
+  SectionHeader,
+  StatCard,
+  Text,
+  stagger,
+} from '@/components/ui';
+import { makeStyles, useTheme } from '@/theme';
 import { Workout } from '../types/workout';
 import {
-    getPersonalRecords,
-    getTotalExercises,
-    getTotalVolume,
-    getUniqueExercises,
-    getWorkoutsByWeek,
+  getPersonalRecords,
+  getTotalExercises,
+  getTotalVolume,
+  getUniqueExercises,
+  getWorkoutsByWeek,
 } from '../utils/stats';
 import { loadWorkouts } from '../utils/storage';
 
 const screenWidth = Dimensions.get('window').width;
 
+// Convert a #rrggbb hex to an rgba() string for chart-kit opacity callbacks.
+const hexToRgba = (hex: string, opacity: number) => {
+  const value = hex.replace('#', '');
+  const full = value.length === 3 ? value.split('').map((c) => c + c).join('') : value;
+  const r = parseInt(full.substring(0, 2), 16);
+  const g = parseInt(full.substring(2, 4), 16);
+  const b = parseInt(full.substring(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+};
+
 export default function ProgressScreen() {
+  const theme = useTheme();
+  const styles = useStyles();
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useFocusEffect(
-    React.useCallback(() => {
-      loadWorkoutsData();
-    }, [])
-  );
-
-  const loadWorkoutsData = async () => {
+  const loadWorkoutsData = useCallback(async () => {
     try {
-      const data = await loadWorkouts();
-      setWorkouts(data);
+      setWorkouts(await loadWorkouts());
     } catch (error) {
       console.error('Error loading workouts:', error);
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadWorkoutsData();
+    }, [loadWorkoutsData])
+  );
+
+  const totalWorkouts = workouts.length;
+  const totalExercises = useMemo(() => getTotalExercises(workouts), [workouts]);
+  const totalVolume = useMemo(() => getTotalVolume(workouts), [workouts]);
+  const uniqueExercises = useMemo(() => getUniqueExercises(workouts), [workouts]);
+  const personalRecords = useMemo(() => getPersonalRecords(workouts), [workouts]);
+  const weeklyWorkouts = useMemo(() => getWorkoutsByWeek(workouts), [workouts]);
+
+  const volumeLabel = totalVolume >= 1000 ? `${(totalVolume / 1000).toFixed(1)}k` : `${totalVolume}`;
+
+  if (!loading && workouts.length === 0) {
+    return (
+      <Screen>
+        <EmptyState
+          icon="stats-chart-outline"
+          title="No Progress Data Yet"
+          description="Complete some workouts to see your progress."
+        />
+      </Screen>
+    );
+  }
+
+  const chartConfig = {
+    backgroundGradientFrom: theme.colors.surface,
+    backgroundGradientTo: theme.colors.surface,
+    decimalPlaces: 0,
+    color: (opacity = 1) => hexToRgba(theme.colors.accent, opacity),
+    labelColor: (opacity = 1) => hexToRgba(theme.colors.textSecondary, opacity),
+    barPercentage: 0.6,
+    propsForBackgroundLines: { stroke: theme.colors.border },
+    propsForLabels: { fontSize: 12 },
   };
 
-  // Calculate stats
-  const totalWorkouts = workouts.length;
-  const totalExercises = getTotalExercises(workouts);
-  const totalVolume = getTotalVolume(workouts);
-  const uniqueExercises = getUniqueExercises(workouts);
-  const personalRecords = getPersonalRecords(workouts);
-  const weeklyWorkouts = getWorkoutsByWeek(workouts);
-
-  if (loading) {
-    return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.emptyText}>Loading...</Text>
-      </View>
-    );
-  }
-
-  if (workouts.length === 0) {
-    return (
-      <View style={styles.centerContainer}>
-        <Ionicons name="stats-chart-outline" size={64} color="#6b7280" />
-        <Text style={styles.emptyTitle}>No Progress Data Yet</Text>
-        <Text style={styles.emptyText}>
-          Complete some workouts to see your progress!
-        </Text>
-      </View>
-    );
-  }
-
   return (
-    <ScrollView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.title}>Your Progress</Text>
-        <Text style={styles.subtitle}>Keep crushing it! 💪</Text>
-      </View>
+    <Screen scroll edgeBottom contentContainerStyle={styles.content}>
+      <FadeIn>
+        <Text variant="title">Progress</Text>
+        <Text variant="body" color="textSecondary" style={styles.subtitle}>
+          Keep crushing it 💪
+        </Text>
+      </FadeIn>
 
-      {/* Stats Grid */}
-      <View style={styles.statsGrid}>
-        <View style={styles.statBox}>
-          <Ionicons name="barbell" size={24} color="#3b82f6" />
-          <Text style={styles.statNumber}>{totalWorkouts}</Text>
-          <Text style={styles.statLabel}>Workouts</Text>
+      <FadeIn delay={stagger(1)}>
+        <View style={styles.statsRow}>
+          <StatCard icon="barbell-outline" value={totalWorkouts} label="Workouts" />
+          <StatCard icon="fitness-outline" value={totalExercises} label="Exercises" />
         </View>
-        <View style={styles.statBox}>
-          <Ionicons name="fitness" size={24} color="#10b981" />
-          <Text style={styles.statNumber}>{totalExercises}</Text>
-          <Text style={styles.statLabel}>Exercises</Text>
-        </View>
-      </View>
+      </FadeIn>
 
-      <View style={styles.statsGrid}>
-        <View style={styles.statBox}>
-          <Ionicons name="trophy" size={24} color="#f59e0b" />
-          <Text style={styles.statNumber}>{uniqueExercises.length}</Text>
-          <Text style={styles.statLabel}>Unique Exercises</Text>
+      <FadeIn delay={stagger(2)}>
+        <View style={styles.statsRow}>
+          <StatCard icon="trophy-outline" value={uniqueExercises.length} label="Unique Exercises" />
+          <StatCard icon="flame-outline" value={volumeLabel} label="Volume (kg)" />
         </View>
-        <View style={styles.statBox}>
-          <Ionicons name="flame" size={24} color="#ef4444" />
-          <Text style={styles.statNumber}>{Math.round(totalVolume / 1000)}k</Text>
-          <Text style={styles.statLabel}>Total Volume (Kg)</Text>
-        </View>
-      </View>
+      </FadeIn>
 
-      {/* Workout Frequency Chart */}
-      <View style={styles.chartSection}>
-        <Text style={styles.sectionTitle}>Workout Frequency</Text>
-        <Text style={styles.chartSubtitle}>Last 4 Weeks</Text>
-        <BarChart
-          data={{
-            labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
-            datasets: [{ data: weeklyWorkouts }],
-          }}
-          width={screenWidth - 40}
-          height={220}
-          yAxisLabel=""
-          yAxisSuffix=""
-          chartConfig={{
-            backgroundColor: '#ffffff',
-            backgroundGradientFrom: '#ffffff',
-            backgroundGradientTo: '#ffffff',
-            decimalPlaces: 0,
-            color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
-            labelColor: (opacity = 1) => `rgba(100, 116, 139, ${opacity})`,
-            style: {
-              borderRadius: 16,
-            },
-            propsForLabels: {
-              fontSize: 12,
-            },
-          }}
-          style={styles.chart}
-        />
-      </View>
+      <FadeIn delay={stagger(3)}>
+        <Card style={styles.chartCard}>
+          <Text variant="overline" color="textSecondary">Workout Frequency</Text>
+          <Text variant="caption" color="textMuted" style={styles.chartSub}>Last 4 weeks</Text>
+          <BarChart
+            data={{
+              labels: ['W1', 'W2', 'W3', 'W4'],
+              datasets: [{ data: weeklyWorkouts }],
+            }}
+            width={screenWidth - theme.spacing.xl * 2 - theme.spacing.lg * 2}
+            height={200}
+            yAxisLabel=""
+            yAxisSuffix=""
+            fromZero
+            chartConfig={chartConfig}
+            style={styles.chart}
+            withInnerLines
+          />
+        </Card>
+      </FadeIn>
 
-      {/* Personal Records */}
-      {personalRecords.length > 0 && (
-        <View style={styles.recordsSection}>
-          <Text style={styles.sectionTitle}>Personal Records 🏆</Text>
-          {personalRecords.map((record, index) => (
-            <View key={index} style={styles.recordCard}>
-              <View style={styles.recordRank}>
-                <Text style={styles.recordRankText}>#{index + 1}</Text>
-              </View>
-              <View style={styles.recordInfo}>
-                <Text style={styles.recordName}>{record.name}</Text>
-                <Text style={styles.recordWeight}>{record.weight} kg</Text>
-              </View>
-            </View>
-          ))}
-        </View>
-      )}
-    </ScrollView>
+      {personalRecords.length > 0 ? (
+        <FadeIn delay={stagger(4)}>
+          <View style={styles.recordsSection}>
+            <SectionHeader title="Personal Records 🏆" />
+            {personalRecords.map((record, index) => (
+              <FadeIn key={`${record.name}-${index}`} delay={stagger(index, 50, 40)}>
+                <Card style={styles.recordCard}>
+                  <View style={styles.recordRank}>
+                    <Text variant="bodyStrong" color={theme.colors.accentText}>#{index + 1}</Text>
+                  </View>
+                  <View style={styles.flex}>
+                    <Text variant="bodyStrong" numberOfLines={1}>{record.name}</Text>
+                    <Text variant="caption" color="accent">{record.weight} kg</Text>
+                  </View>
+                </Card>
+              </FadeIn>
+            ))}
+          </View>
+        </FadeIn>
+      ) : null}
+    </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
+const useStyles = makeStyles((t) => ({
+  content: {
+    paddingHorizontal: t.spacing.xl,
+    paddingTop: t.spacing['2xl'],
+    paddingBottom: t.spacing.xl,
   },
-  centerContainer: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  header: {
-    padding: 20,
-    paddingTop: 10,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#0f172a',
-  },
+  flex: { flex: 1 },
   subtitle: {
-    fontSize: 16,
-    color: '#64748b',
-    marginTop: 4,
+    marginTop: t.spacing.xs,
+    marginBottom: t.spacing.xl,
   },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#0f172a',
-    marginTop: 16,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#64748b',
-    textAlign: 'center',
-    marginTop: 8,
-  },
-  statsGrid: {
+  statsRow: {
     flexDirection: 'row',
-    paddingHorizontal: 20,
-    gap: 12,
-    marginBottom: 12,
+    gap: t.spacing.md,
+    marginBottom: t.spacing.md,
   },
-  statBox: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-    padding: 20,
-    borderRadius: 12,
-    alignItems: 'center',
+  chartCard: {
+    marginTop: t.spacing.sm,
+    marginBottom: t.spacing.xl,
   },
-  statNumber: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#0f172a',
-    marginTop: 8,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#64748b',
-    marginTop: 4,
-    textAlign: 'center',
-  },
-  chartSection: {
-    padding: 20,
-    marginTop: 12,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#0f172a',
-    marginBottom: 4,
-  },
-  chartSubtitle: {
-    fontSize: 14,
-    color: '#64748b',
-    marginBottom: 16,
+  chartSub: {
+    marginTop: 2,
+    marginBottom: t.spacing.md,
   },
   chart: {
-    borderRadius: 16,
+    marginLeft: -t.spacing.sm,
+    borderRadius: t.radius.md,
   },
   recordsSection: {
-    padding: 20,
-    paddingTop: 0,
+    marginTop: t.spacing.xs,
   },
   recordCard: {
     flexDirection: 'row',
-    backgroundColor: '#ffffff',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
     alignItems: 'center',
+    gap: t.spacing.md,
+    marginBottom: t.spacing.md,
   },
   recordRank: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: '#3b82f6',
+    borderRadius: t.radius.full,
+    backgroundColor: t.colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
   },
-  recordRankText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#ffffff',
-  },
-  recordInfo: {
-    flex: 1,
-  },
-  recordName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#0f172a',
-  },
-  recordWeight: {
-    fontSize: 14,
-    color: '#3b82f6',
-    marginTop: 2,
-  },
-});
+}));

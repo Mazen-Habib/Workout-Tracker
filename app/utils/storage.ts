@@ -45,6 +45,18 @@ export const addWorkout = async (workout: Workout): Promise<void> => {
   }
 };
 
+// Replace an existing workout (used for editing logged workouts)
+export const updateWorkout = async (updated: Workout): Promise<void> => {
+  try {
+    const workouts = await loadWorkouts();
+    const next = workouts.map((w) => (w.id === updated.id ? updated : w));
+    await saveWorkouts(next);
+  } catch (error) {
+    console.error('Error updating workout:', error);
+    throw error;
+  }
+};
+
 // Delete a workout by ID
 export const deleteWorkout = async (workoutId: string): Promise<void> => {
   try {

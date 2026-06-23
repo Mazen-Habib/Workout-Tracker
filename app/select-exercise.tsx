@@ -1,59 +1,51 @@
-import { AppDialog, AppDialogAction } from '@/components/ui/app-dialog';
-import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useCallback, useState } from 'react';
 import {
-    Dimensions,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
-} from 'react-native';
+  AppDialog,
+  EmptyState,
+  Fab,
+  FadeIn,
+  FormModal,
+  ListRow,
+  Screen,
+  Text,
+  TextField,
+  stagger,
+} from '@/components/ui';
+import { useAppDialog } from '@/hooks/use-app-dialog';
+import { makeStyles } from '@/theme';
 import { Exercise, ExerciseLibrary } from './types/workout';
 import { addExercise, deleteExercise, loadLibrary, updateExerciseName } from './utils/storage';
 
-const WIDTH = Dimensions.get('window').width;
-
 export default function SelectExerciseScreen() {
   const router = useRouter();
+  const styles = useStyles();
+  const dialog = useAppDialog();
   const { sportId, categoryId, muscleId } = useLocalSearchParams<{
     sportId: string;
     categoryId: string;
     muscleId?: string;
   }>();
+
   const [exercises, setExercises] = useState<Exercise[]>([]);
-  const [sourceName, setSourceName] = useState<string>('');
+  const [sourceName, setSourceName] = useState('');
   const [isCategoryFlow, setIsCategoryFlow] = useState(false);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [newExerciseName, setNewExerciseName] = useState('');
   const [editingExerciseId, setEditingExerciseId] = useState<string | null>(null);
-  const [dialogVisible, setDialogVisible] = useState(false);
-  const [dialogTitle, setDialogTitle] = useState('');
-  const [dialogMessage, setDialogMessage] = useState('');
-  const [dialogActions, setDialogActions] = useState<AppDialogAction[]>([]);
-
-  useEffect(() => {
-    loadExerciseData();
-  }, []);
 
   const sportIdString = Array.isArray(sportId) ? sportId[0] : sportId;
   const categoryIdString = Array.isArray(categoryId) ? categoryId[0] : categoryId;
   const muscleIdString = Array.isArray(muscleId) ? muscleId[0] : muscleId;
 
-  const loadExerciseData = async () => {
+  const loadExerciseData = useCallback(async () => {
     try {
       setLoading(true);
       const library: ExerciseLibrary = await loadLibrary();
       const sport = library.sports.find((s) => s.id === sportIdString);
       const category = sport?.categories.find((c) => c.id === categoryIdString);
-      const muscle = muscleIdString
-        ? category?.muscleGroups.find((m) => m.id === muscleIdString)
-        : undefined;
-      
+      const muscle = muscleIdString ? category?.muscleGroups.find((m) => m.id === muscleIdString) : undefined;
       if (muscle) {
         setSourceName(muscle.name);
         setIsCategoryFlow(false);
@@ -68,10 +60,15 @@ export default function SelectExerciseScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [sportIdString, categoryIdString, muscleIdString]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadExerciseData();
+    }, [loadExerciseData])
+  );
 
   const handleSelectExercise = (exercise: Exercise) => {
-    // Proceed to the next screen (e.g., log exercise sets)
     router.push({
       pathname: '/log-exercise',
       params: {
@@ -84,36 +81,25 @@ export default function SelectExerciseScreen() {
     });
   };
 
-  const handleSaveExercise = async () => {
-    if (newExerciseName.trim().length === 0) {
-      return;
-    }
+  const resetModal = () => {
+    setNewExerciseName('');
+    setEditingExerciseId(null);
+    setModalVisible(false);
+  };
 
+  const handleSaveExercise = async () => {
+    if (newExerciseName.trim().length === 0) return;
     try {
       if (editingExerciseId) {
-        await updateExerciseName(
-          sportIdString,
-          categoryIdString,
-          muscleIdString || null,
-          editingExerciseId,
-          newExerciseName.trim()
-        );
+        await updateExerciseName(sportIdString, categoryIdString, muscleIdString || null, editingExerciseId, newExerciseName.trim());
       } else {
         await addExercise(sportIdString, categoryIdString, muscleIdString || null, newExerciseName.trim());
       }
-      setNewExerciseName('');
-      setEditingExerciseId(null);
-      setModalVisible(false);
+      resetModal();
       await loadExerciseData();
     } catch (error) {
       console.error('Error saving exercise:', error);
     }
-  };
-
-  const handleOpenAddExercise = () => {
-    setEditingExerciseId(null);
-    setNewExerciseName('');
-    setModalVisible(true);
   };
 
   const handleEditExercise = (exercise: Exercise) => {
@@ -123,281 +109,100 @@ export default function SelectExerciseScreen() {
   };
 
   const handleDeleteExercise = (exercise: Exercise) => {
-    setDialogTitle(`Delete ${exercise.name}?`);
-    setDialogMessage('This action cannot be undone.');
-    setDialogActions([
-      { label: 'Cancel', variant: 'cancel' },
-      {
-        label: 'Delete',
-        variant: 'danger',
-        onPress: async () => {
-          try {
-            await deleteExercise(sportIdString, categoryIdString, muscleIdString || null, exercise.id);
-            await loadExerciseData();
-          } catch (error) {
-            setDialogTitle('Error');
-            setDialogMessage('Failed to delete exercise');
-            setDialogActions([{ label: 'OK', variant: 'cancel' }]);
-            setDialogVisible(true);
-          }
-        },
+    dialog.confirm({
+      title: `Delete ${exercise.name}?`,
+      message: 'This action cannot be undone.',
+      confirmLabel: 'Delete',
+      destructive: true,
+      onConfirm: async () => {
+        try {
+          await deleteExercise(sportIdString, categoryIdString, muscleIdString || null, exercise.id);
+          await loadExerciseData();
+        } catch {
+          dialog.alert('Error', 'Failed to delete exercise');
+        }
       },
-    ]);
-    setDialogVisible(true);
+    });
   };
 
   const handleExerciseLongPress = (exercise: Exercise) => {
-    setDialogTitle(exercise.name);
-    setDialogMessage('Choose an action');
-    setDialogActions([
-      { label: 'Update Name', onPress: () => handleEditExercise(exercise) },
-      {
-        label: 'Delete Exercise',
-        variant: 'danger',
-        onPress: () => handleDeleteExercise(exercise),
-      },
-      { label: 'Cancel', variant: 'cancel' },
-    ]);
-    setDialogVisible(true);
+    dialog.show({
+      title: exercise.name,
+      message: 'Choose an action',
+      actions: [
+        { label: 'Update Name', onPress: () => handleEditExercise(exercise) },
+        { label: 'Delete', variant: 'danger', onPress: () => handleDeleteExercise(exercise) },
+        { label: 'Cancel', variant: 'cancel' },
+      ],
+    });
   };
 
-  const renderEmptyState = () => (
-    <View style={styles.emptyStateContainer}>
-      <Ionicons name="barbell" size={64} color="#6b7280" />
-      <Text style={styles.emptyStateText}>
-        {isCategoryFlow
-          ? 'No exercises available for this category.'
-          : 'No exercises available for this muscle group.'}
-      </Text>
-    </View>
-  );
-
-  const renderExerciseCard = (exercise: Exercise) => (
-    <TouchableOpacity
-      key={exercise.id}
-      onPress={() => handleSelectExercise(exercise)}
-      onLongPress={() => handleExerciseLongPress(exercise)}
-      activeOpacity={0.7}
-      style={styles.exerciseCard}
-    >
-      <Text style={styles.exerciseName}>{exercise.name}</Text>
-      <Ionicons name="chevron-forward" size={24} color="#3b82f6" />
-    </TouchableOpacity>
-  );
-
   return (
-    <View style={styles.container}>
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading...</Text>
-        </View>
+    <Screen scroll edgeBottom contentContainerStyle={styles.content}>
+      <FadeIn>
+        <Text variant="heading" style={styles.title}>
+          {sourceName} · Exercises
+        </Text>
+      </FadeIn>
+
+      {loading ? null : exercises.length === 0 ? (
+        <EmptyState
+          icon="barbell-outline"
+          title="No exercises yet"
+          description={isCategoryFlow ? 'Add an exercise to this category.' : 'Add an exercise to this muscle group.'}
+        />
       ) : (
-        <>
-          <Text style={styles.title}>{sourceName} - Exercises</Text>
-          <ScrollView
-            contentContainerStyle={styles.exercisesList}
-            scrollEnabled={exercises.length > 3}
-          >
-            {exercises.length === 0
-              ? renderEmptyState()
-              : exercises.map((exercise) =>
-                  renderExerciseCard(exercise)
-                )}
-          </ScrollView>
-
-          <TouchableOpacity
-            style={styles.fab}
-            onPress={handleOpenAddExercise}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="add" size={32} color="#ffffff" />
-          </TouchableOpacity>
-
-          <Modal
-            visible={modalVisible}
-            transparent={true}
-            animationType="fade"
-            onRequestClose={() => setModalVisible(false)}
-          >
-            <View style={styles.modalOverlay}>
-              <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>
-                  {editingExerciseId ? 'Update Exercise Name' : 'Add New Exercise'}
-                </Text>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="Enter exercise name"
-                  placeholderTextColor="#9ca3af"
-                  value={newExerciseName}
-                  onChangeText={setNewExerciseName}
-                  autoFocus
-                />
-                <View style={styles.modalButtonContainer}>
-                  <TouchableOpacity
-                    style={styles.cancelButton}
-                    onPress={() => {
-                      setModalVisible(false);
-                      setEditingExerciseId(null);
-                      setNewExerciseName('');
-                    }}
-                  >
-                    <Text style={styles.cancelButtonText}>Cancel</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.addButton}
-                    onPress={handleSaveExercise}
-                  >
-                    <Text style={styles.addButtonText}>
-                      {editingExerciseId ? 'Update Exercise' : 'Add Exercise'}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </View>
-          </Modal>
-
-          <AppDialog
-            visible={dialogVisible}
-            title={dialogTitle}
-            message={dialogMessage}
-            actions={dialogActions}
-            onClose={() => setDialogVisible(false)}
-          />
-        </>
+        exercises.map((exercise, index) => (
+          <FadeIn key={exercise.id} delay={stagger(index)}>
+            <ListRow
+              icon="barbell-outline"
+              title={exercise.name}
+              subtitle={exercise.note ? exercise.note : undefined}
+              onPress={() => handleSelectExercise(exercise)}
+              onLongPress={() => handleExerciseLongPress(exercise)}
+            />
+          </FadeIn>
+        ))
       )}
-    </View>
+
+      <Fab
+        icon="add"
+        onPress={() => {
+          setEditingExerciseId(null);
+          setNewExerciseName('');
+          setModalVisible(true);
+        }}
+        accessibilityLabel="Add exercise"
+      />
+
+      <FormModal
+        visible={modalVisible}
+        title={editingExerciseId ? 'Update Exercise' : 'Add Exercise'}
+        primaryLabel={editingExerciseId ? 'Update' : 'Add'}
+        onPrimary={handleSaveExercise}
+        onCancel={resetModal}
+      >
+        <TextField
+          placeholder="Exercise name"
+          value={newExerciseName}
+          onChangeText={setNewExerciseName}
+          autoFocus
+        />
+      </FormModal>
+
+      <AppDialog {...dialog.props} />
+    </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
+const useStyles = makeStyles((t) => ({
+  content: {
+    paddingHorizontal: t.spacing.xl,
+    paddingTop: t.spacing['2xl'],
+    paddingBottom: t.spacing.xl,
+    flexGrow: 1,
   },
   title: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#0f172a',
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 12,
+    marginBottom: t.spacing.lg,
   },
-  exercisesList: {
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-  },
-  exerciseCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    marginBottom: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  exerciseName: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#0f172a',
-    flex: 1,
-    textAlign: 'center',
-  },
-  emptyStateContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    minHeight: 400,
-  },
-  emptyStateText: {
-    color: '#64748b',
-    fontSize: 16,
-    textAlign: 'center',
-    marginTop: 16,
-    maxWidth: WIDTH - 32,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    color: '#0f172a',
-    fontSize: 16,
-  },
-  fab: {
-    position: 'absolute',
-    bottom: 24,
-    right: 24,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#3b82f6',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.35)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 24,
-    width: Math.min(WIDTH - 32, 400),
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#0f172a',
-    marginBottom: 16,
-  },
-  textInput: {
-    backgroundColor: '#ffffff',
-    borderColor: '#cbd5e1',
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    color: '#0f172a',
-    marginBottom: 24,
-    fontSize: 16,
-  },
-  modalButtonContainer: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  cancelButton: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
-    backgroundColor: '#e2e8f0',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  cancelButtonText: {
-    color: '#0f172a',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  addButton: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
-    backgroundColor: '#3b82f6',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  addButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-});
+}));

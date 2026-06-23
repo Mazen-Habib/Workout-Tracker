@@ -1,16 +1,21 @@
 import { formatDistanceToNow } from 'date-fns';
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
+import { FlatList, View } from 'react-native';
 import {
-  Alert,
-  FlatList,
-  Modal,
-  StyleSheet,
+  AppDialog,
+  Card,
+  EmptyState,
+  FadeIn,
+  FormModal,
+  IconButton,
+  Screen,
   Text,
-  TextInput,
-  TouchableOpacity,
-  View
-} from 'react-native';
+  TextField,
+  stagger,
+} from '@/components/ui';
+import { useAppDialog } from '@/hooks/use-app-dialog';
+import { makeStyles } from '@/theme';
 import { generateId } from '../utils/helpers';
 import { loadNotes, saveNotes } from '../utils/storage';
 
@@ -21,54 +26,38 @@ type QuickNote = {
 };
 
 export default function NotesScreen() {
+  const styles = useStyles();
+  const dialog = useAppDialog();
   const [notes, setNotes] = useState<QuickNote[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalText, setModalText] = useState('');
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
 
-  // Load notes when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      const loadNotesFromStorage = async () => {
-        const loadedNotes = await loadNotes();
-        setNotes(loadedNotes);
-      };
-      loadNotesFromStorage();
+      (async () => setNotes(await loadNotes()))();
     }, [])
   );
 
-  const handleAddNote = async () => {
+  const handleSaveNote = async () => {
     if (!modalText.trim()) {
-      Alert.alert('Empty Note', 'Please enter some text for your note.');
+      dialog.alert('Empty Note', 'Please enter some text for your note.');
       return;
     }
-
+    let updatedNotes: QuickNote[];
     if (editingNoteId) {
-      // Edit mode: update existing note
-      const updatedNotes = notes.map(n =>
-        n.id === editingNoteId ? { ...n, text: modalText.trim() } : n
-      );
-      setNotes(updatedNotes);
-      await saveNotes(updatedNotes);
-      setEditingNoteId(null);
+      updatedNotes = notes.map((n) => (n.id === editingNoteId ? { ...n, text: modalText.trim() } : n));
     } else {
-      // Add mode: create new note
-      const newNote: QuickNote = {
-        id: generateId(),
-        text: modalText.trim(),
-        createdAt: new Date().toISOString(),
-      };
-      const updatedNotes = [newNote, ...notes];
-      setNotes(updatedNotes);
-      await saveNotes(updatedNotes);
+      const newNote: QuickNote = { id: generateId(), text: modalText.trim(), createdAt: new Date().toISOString() };
+      updatedNotes = [newNote, ...notes];
     }
-
-    setModalText('');
-    setIsModalOpen(false);
+    setNotes(updatedNotes);
+    await saveNotes(updatedNotes);
+    closeModal();
   };
 
-  const handleOpenEditModal = (noteId: string) => {
-    const note = notes.find(n => n.id === noteId);
+  const openEditModal = (noteId: string) => {
+    const note = notes.find((n) => n.id === noteId);
     if (note) {
       setEditingNoteId(noteId);
       setModalText(note.text);
@@ -82,23 +71,24 @@ export default function NotesScreen() {
     setIsModalOpen(false);
   };
 
-  const handleNoteAction = (noteId: string) => {
-    Alert.alert('Note Options', 'What would you like to do?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Edit',
-        onPress: () => handleOpenEditModal(noteId),
-      },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          const updatedNotes = notes.filter(n => n.id !== noteId);
-          setNotes(updatedNotes);
-          await saveNotes(updatedNotes);
+  const handleNoteLongPress = (noteId: string) => {
+    dialog.show({
+      title: 'Note Options',
+      message: 'What would you like to do?',
+      actions: [
+        { label: 'Edit', onPress: () => openEditModal(noteId) },
+        {
+          label: 'Delete',
+          variant: 'danger',
+          onPress: async () => {
+            const updatedNotes = notes.filter((n) => n.id !== noteId);
+            setNotes(updatedNotes);
+            await saveNotes(updatedNotes);
+          },
         },
-      },
-    ]);
+        { label: 'Cancel', variant: 'cancel' },
+      ],
+    });
   };
 
   const getRelativeTime = (dateString: string) => {
@@ -109,250 +99,91 @@ export default function NotesScreen() {
     }
   };
 
-  const renderNoteItem = ({ item }: { item: QuickNote }) => {
-    return (
-      <TouchableOpacity
-        onPress={() => handleOpenEditModal(item.id)}
-        onLongPress={() => handleNoteAction(item.id)}
-        activeOpacity={0.7}
-      >
-        <View style={styles.noteItem}>
-          <View style={styles.noteContent}>
-            <View style={styles.noteHeader}>
-              <Text style={styles.bullet}>•</Text>
-              <Text style={styles.noteText} numberOfLines={3}>
-                {item.text}
-              </Text>
-            </View>
-            <Text style={styles.timestamp}>
-              {getRelativeTime(item.createdAt)}
-            </Text>
-          </View>
-        </View>
-      </TouchableOpacity>
-    );
-  };
-
   return (
-    <View style={styles.container}>
-      {/* Header */}
+    <Screen edgeBottom style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Quick Notes</Text>
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => {
-            setEditingNoteId(null);
-            setModalText('');
-            setIsModalOpen(true);
-          }}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.addButtonText}>+</Text>
-        </TouchableOpacity>
+        <Text variant="title">Notes</Text>
+        <IconButton icon="add" onPress={() => { setEditingNoteId(null); setModalText(''); setIsModalOpen(true); }} accessibilityLabel="Add note" />
       </View>
 
-      {/* Notes List */}
       {notes.length === 0 ? (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyStateText}>
-            No notes yet. Tap + to add one!
-          </Text>
-        </View>
+        <EmptyState icon="document-text-outline" title="No notes yet" description="Tap + to capture a quick thought." />
       ) : (
         <FlatList
           data={notes}
-          renderItem={renderNoteItem}
-          keyExtractor={item => item.id}
-          scrollEnabled={false}
-          contentContainerStyle={styles.notesList}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.list}
+          showsVerticalScrollIndicator={false}
+          renderItem={({ item, index }) => (
+            <FadeIn delay={stagger(Math.min(index, 8))}>
+              <Card onPress={() => openEditModal(item.id)} onLongPress={() => handleNoteLongPress(item.id)} style={styles.noteCard}>
+                <View style={styles.noteRow}>
+                  <View style={styles.bullet} />
+                  <View style={styles.flex}>
+                    <Text variant="body" numberOfLines={4}>{item.text}</Text>
+                    <Text variant="caption" color="textMuted" style={styles.timestamp}>
+                      {getRelativeTime(item.createdAt)}
+                    </Text>
+                  </View>
+                </View>
+              </Card>
+            </FadeIn>
+          )}
         />
       )}
 
-      {/* Add/Edit Note Modal */}
-      <Modal
+      <FormModal
         visible={isModalOpen}
-        transparent
-        animationType="slide"
-        onRequestClose={closeModal}
+        title={editingNoteId ? 'Edit Note' : 'New Note'}
+        primaryLabel={editingNoteId ? 'Update' : 'Save'}
+        onPrimary={handleSaveNote}
+        onCancel={closeModal}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>
-              {editingNoteId ? 'Edit Note' : 'New Note'}
-            </Text>
+        <TextField
+          placeholder="What do you want to remember?"
+          multiline
+          maxLength={500}
+          value={modalText}
+          onChangeText={setModalText}
+          autoFocus
+        />
+      </FormModal>
 
-            <TextInput
-              style={styles.textInput}
-              placeholder="What do you want to remember?"
-              placeholderTextColor="#6b7280"
-              multiline
-              numberOfLines={6}
-              value={modalText}
-              onChangeText={setModalText}
-              autoFocus
-              maxLength={500}
-            />
-
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.button, styles.cancelButton]}
-                onPress={closeModal}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.buttonText}>Cancel</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.button, styles.saveButton]}
-                onPress={handleAddNote}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.saveButtonText}>
-                  {editingNoteId ? 'Update' : 'Save'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-    </View>
+      <AppDialog {...dialog.props} />
+    </Screen>
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((t) => ({
   container: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
+    paddingHorizontal: t.spacing.xl,
   },
   header: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
+    paddingTop: t.spacing['2xl'],
+    paddingBottom: t.spacing.lg,
   },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: '#0f172a',
+  list: {
+    paddingBottom: t.spacing['2xl'],
   },
-  addButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#3b82f6',
-    justifyContent: 'center',
-    alignItems: 'center',
+  flex: { flex: 1 },
+  noteCard: {
+    marginBottom: t.spacing.md,
   },
-  addButtonText: {
-    fontSize: 24,
-    color: '#ffffff',
-    fontWeight: '300',
-  },
-  notesList: {
-    paddingVertical: 8,
-  },
-  noteItem: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
-  },
-  noteContent: {
-    flex: 1,
-  },
-  noteHeader: {
+  noteRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    gap: t.spacing.md,
   },
   bullet: {
-    fontSize: 16,
-    color: '#3b82f6',
-    marginRight: 8,
-    marginTop: 2,
-  },
-  noteText: {
-    flex: 1,
-    fontSize: 16,
-    color: '#0f172a',
-    lineHeight: 24,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: t.colors.accent,
+    marginTop: 7,
   },
   timestamp: {
-    fontSize: 12,
-    color: '#64748b',
-    marginTop: 4,
-    marginLeft: 24,
+    marginTop: t.spacing.sm,
   },
-  emptyState: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 32,
-  },
-  emptyStateText: {
-    fontSize: 16,
-    color: '#64748b',
-    textAlign: 'center',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#ffffff',
-    paddingTop: 24,
-    paddingHorizontal: 16,
-    paddingBottom: 32,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#0f172a',
-    marginBottom: 16,
-  },
-  textInput: {
-    backgroundColor: '#ffffff',
-    borderRadius: 8,
-    padding: 12,
-    color: '#0f172a',
-    fontSize: 16,
-    minHeight: 120,
-    textAlignVertical: 'top',
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  button: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  cancelButton: {
-    backgroundColor: '#e2e8f0',
-  },
-  saveButton: {
-    backgroundColor: '#3b82f6',
-  },
-  buttonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#0f172a',
-  },
-  saveButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#ffffff',
-  },
-});
+}));
